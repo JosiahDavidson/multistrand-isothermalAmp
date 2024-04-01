@@ -683,10 +683,10 @@ class MergeSim:
 
         printTrajectory(o1)
 
-    def initialInfo(self):
+    def stateInfo(self):
         opts = self.factory.new(777)
         simSys = SimSystem(opts)
-        simSys.initialInfo()
+        simSys.stateInfo()
 
     def startSimMessage(self):
         welcomeMessage = "Using Results Type: " + self.settings.resultsType + "\n"

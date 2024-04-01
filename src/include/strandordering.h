@@ -78,7 +78,7 @@ public:
 	// updates and returns the current exterior base count.
 	BaseCount& getExteriorBases();
 	OpenInfo& getOpenInfo();
-	string toString(void);
+	void toString(std::ostream&);
 
 	// replaces the first open loop in the ordering with the second.
 	void replaceOpenLoop(Loop *oldLoop, Loop *newLoop);

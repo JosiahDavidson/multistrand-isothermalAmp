@@ -30,9 +30,10 @@ public:
 	SComplexListEntry *addComplex(StrandComplex *newComplex);
 	void initializeList(void);
 	void regenerateMoves(EnergyModel *energyModel);
-	double getTotalFlux(void);
-	double getJoinFlux(void);
 	int getMoveCount(void);
+	double getMoveFlux(void);
+	double getJoinFlux(void);
+	double getTotalFlux(void);
 
 	BaseCount getExposedBases();
 	OpenInfo getOpenInfo();
@@ -42,16 +43,23 @@ public:
 	double cycleCrossRateArr(StrandOrdering*, StrandOrdering*);
 	int getCount(void);
 	double *getEnergy(int volume_flag);
-	void printComplexList();
+
+	void printComplexList(std::ostream&);
+	void printStructures(std::ostream&);
+	void printAllMoves(std::vector<string>&);
 	SComplexListEntry *getFirst(void);
-	double doBasicChoice(SimTimer& timer);
-	JoinCriteria cycleForJoinChoice(SimTimer& timer);
-	JoinCriteria cycleForJoinChoiceArr(SimTimer& timer);
-	JoinCriteria findJoinNucleotides(BaseType, int, BaseCount&, SComplexListEntry*, HalfContext* = NULL);
-	double doJoinChoice(SimTimer& choice);
-	void doJoinChoiceArr(double choice);
+	double doBasicChoice(
+		SimTimer&, int* = NULL, int* = NULL, int* = NULL,
+		std::stringstream* = NULL, std::stringstream* = NULL);
+	JoinCriteria cycleForJoinChoice(SimTimer&, int* = NULL, int* = NULL);
+	JoinCriteria cycleForJoinChoiceArr(SimTimer&, int* = NULL, int* = NULL);
+	JoinCriteria findJoinNucleotides(
+		BaseType, int, BaseCount&, SComplexListEntry*, int* = NULL, HalfContext* = NULL);
+	double doJoinChoice(
+		SimTimer&, int* = NULL, int* = NULL,
+		std::stringstream* = NULL, std::stringstream* = NULL);
 	bool checkStopComplexList(class complexItem *stoplist);
-	string toString(void);
+	void toString(std::ostream&);
 	void updateOpenInfo(void);
 
 private:
@@ -77,7 +85,7 @@ public:
 	void initializeComplex(EnergyModel *energyModel);
 	void regenerateMoves(EnergyModel *energyModel);
 	void fillData(EnergyModel *em);
-	string toString(EnergyModel *em);
+	void toString(std::ostream&, EnergyModel *);
 	void dumpComplexEntryToPython(ExportData& data, EnergyModel *energyModel);
 
 	int id;
@@ -90,4 +98,3 @@ public:
 };
 
 #endif
-

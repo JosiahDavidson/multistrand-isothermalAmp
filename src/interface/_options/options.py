@@ -220,8 +220,9 @@ class Options:
         self._start_state: List[Complex] = []
 
         self.gt_enable = True
-        """ Allow GT base pairs? If not, penalize by 10000 kcal/mol.
-            False (0) : Do not allow GT base pairs.
+        """
+        If `False`, GT base pairs are penalized by 10000 kcal/mol
+        in the energy model for open loops and multi-loops.
         """
 
         self.log_ml = False

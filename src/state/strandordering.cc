@@ -780,28 +780,17 @@ OpenInfo& StrandOrdering::getOpenInfo(void) {
 
 }
 
-string StrandOrdering::toString(void) {
+void StrandOrdering::toString(std::ostream& ss) {
 
-	std::stringstream ss;
-
-	ss << "Ordering: ";
+	ss << "Ordering:" << endl;
 
 	orderingList *traverse = NULL;
-
 	for (traverse = first; traverse != NULL; traverse = traverse->next) {
-
 		assert(traverse->thisLoop != NULL);
-
-		// now also print openInfos
-		ss << traverse->thisLoop->typeInternalsToString();
-
+		traverse->thisLoop->typeInternalsToString(ss);
 	}
 
-	// now print the combined openInfo
-	ss << "Summed OpenInfo: \n";
-	ss << getOpenInfo();
-
-	return ss.str();
+	ss << "Sum:" << endl << getOpenInfo();
 
 }
 

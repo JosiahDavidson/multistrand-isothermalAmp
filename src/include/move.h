@@ -34,7 +34,7 @@ public:
 
 	friend std::ostream& operator<<(std::ostream&, RateEnv&);
 
-	string toString(bool);
+	void toString(std::ostream&, bool);
 
 	double rate;
 	double arrType = -444.0;
@@ -56,7 +56,7 @@ public:
 	double getArrType(void);
 	Loop *getAffected(int index);
 	Loop *doChoice(EnergyModel *energyModel);
-	string toString(bool);
+	void toString(std::ostream&, bool);
 
 	friend class Loop;
 	friend class HairpinLoop;
@@ -86,7 +86,7 @@ public:
 	virtual Move *getChoice(SimTimer& timer) = 0;
 	virtual Move *getMove(Move *iterator) = 0;
 	virtual int getCount(void) = 0;
-	virtual void printAllMoves(bool useArrhenius) = 0;
+	virtual void printAllMoves(vector<string>&, EnergyModel*) = 0;
 
 protected:
 	double totalrate;
@@ -102,7 +102,7 @@ public:
 	Move *getMove(Move *iterator);
 	int getCount(void);
 	void resetDeleteMoves(void);
-	void printAllMoves(bool useArrhenius);
+	void printAllMoves(vector<string>&, EnergyModel*);
 
 	//  friend class Move;
 private:

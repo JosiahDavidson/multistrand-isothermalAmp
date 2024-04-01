@@ -36,6 +36,10 @@
   thermodynamic model, adjusting concentration units in ensemble free energy).
 - Defined repeatedly used physical constants (e.g., Boltzmann, Celsius to
   Kelvin) in the `options` and `utils.thermo` modules.
+- Consolidated and extended `SimSystem.stateInfo()` (formerly `initialInfo()`)
+  to accept states other than the initial state, to list both uni- and
+  bimolecular moves, to print the adjacent secondary structure for each move,
+  and to use consistent formatting that allows for efficient parsing.
 - Enabled toggling simulator debug traces from the Python runtime via
   `Options.verbosity`, i.e., without recompiling the C++ extension.
 - Improved the reliability of `MergeSim` (Python) by switching from the standard

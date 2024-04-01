@@ -50,11 +50,11 @@ public:
 	virtual void generateMoves(EnergyModel *energyModel) = 0;
 	virtual void generateDeleteMoves(EnergyModel*) = 0;
 	virtual void regenerateDeleteMoves(EnergyModel *energyModel) = 0;
-	virtual Move *getChoice(SimTimer& timer, Loop *from) = 0;
+	virtual Move *getChoice(SimTimer& timer, Loop *from, int *loop_idx, Loop **at) = 0;
 	virtual double doChoice(Move *move, Loop **returnLoop, EnergyModel *energyModel) = 0;
 	virtual BaseType *getLocation(Move *move, int index) = 0;
 	virtual BaseType *verifyLoop(BaseType *incoming_sequence, Loop *from) = 0;
-	virtual string typeInternalsToString(void) = 0;
+	virtual void typeInternalsToString(std::ostream&) = 0;
 	virtual void printMove(Loop *comefrom, char *structure_p, BaseType *seq_p) = 0;
 	Loop *getAdjacent(int index);
 	int getCurAdjacent(void);
@@ -84,9 +84,9 @@ public:
     static std::tuple<int,int> findExternalAdjacent(Loop*, Loop*);
     static std::pair<Loop*, Loop*> orderMyLoops(Loop*, Loop*, char);
 
-	string toString(void);
-	string toStringShort(void);
-	void printAllMoves(Loop*, bool useArrhenius);
+	void toString(std::ostream&);
+	friend std::ostream& operator<<(std::ostream&, Loop*);
+	void printAllMoves(std::vector<string>& moveinfo, Loop*, EnergyModel*);
 	void generateAndSaveDeleteMove(Loop*, int, EnergyModel*);
 
 	// FD: moving private to public
@@ -112,7 +112,7 @@ public:
 	void generateMoves(EnergyModel *energyModel);
 	void generateDeleteMoves(EnergyModel*);
 	void regenerateDeleteMoves(EnergyModel *energyModel);
-	Move *getChoice(SimTimer& timer, Loop *from);
+	Move *getChoice(SimTimer& timer, Loop *from, int *loop_idx, Loop **at);
 	double doChoice(Move *move, Loop **returnLoop, EnergyModel *energyModel);
 	void printMove(Loop *comefrom, char *structure_p, BaseType *seq_p);
 	BaseType *getLocation(Move *move, int index);
@@ -125,7 +125,7 @@ public:
 
 	StackLoop(void);
 	StackLoop(BaseType *seq1, BaseType *seq2, Loop *left = NULL, Loop *right = NULL);
-	string typeInternalsToString(void);
+	void typeInternalsToString(std::ostream&);
 
 private:
 	BaseType *seqs[2];
@@ -138,7 +138,7 @@ public:
 	void generateMoves(EnergyModel *energyModel);
 	void generateDeleteMoves(EnergyModel*);
 	void regenerateDeleteMoves(EnergyModel *energyModel);
-	Move *getChoice(SimTimer& timer, Loop *from);
+	Move *getChoice(SimTimer& timer, Loop *from, int *loop_idx, Loop **at);
 	double doChoice(Move *move, Loop **returnLoop, EnergyModel *energyModel);
 	void printMove(Loop *comefrom, char *structure_p, BaseType *seq_p);
 	BaseType *getLocation(Move *move, int index);
@@ -151,7 +151,7 @@ public:
 	friend Loop * Loop::performDeleteMove(Move *move, EnergyModel *energyModel);
 	friend void Loop::performComplexSplit(
 		Move *move, Loop **firstOpen, Loop **secondOpen, EnergyModel *energyModel);
-	string typeInternalsToString(void);
+	void typeInternalsToString(std::ostream&);
 
 private:
 	int hairpinsize;
@@ -165,7 +165,7 @@ public:
 	void generateMoves(EnergyModel *energyModel);
 	void generateDeleteMoves(EnergyModel*);
 	void regenerateDeleteMoves(EnergyModel *energyModel);
-	Move *getChoice(SimTimer& timer, Loop *from);
+	Move *getChoice(SimTimer& timer, Loop *from, int *loop_idx, Loop **at);
 	double doChoice(Move *move, Loop **returnLoop, EnergyModel *energyModel);
 	void printMove(Loop *comefrom, char *structure_p, BaseType *seq_p);
 	BaseType *getLocation(Move *move, int index);
@@ -178,7 +178,7 @@ public:
 	friend Loop * Loop::performDeleteMove(Move *move, EnergyModel *energyModel);
 	friend void Loop::performComplexSplit(
 		Move *move, Loop **firstOpen, Loop **secondOpen, EnergyModel *energyModel);
-	string typeInternalsToString(void);
+	void typeInternalsToString(std::ostream&);
 
 private:
 	int bulgesize[2];
@@ -192,7 +192,7 @@ public:
 	void generateMoves(EnergyModel *energyModel);
 	void generateDeleteMoves(EnergyModel*);
 	void regenerateDeleteMoves(EnergyModel *energyModel);
-	Move *getChoice(SimTimer& timer, Loop *from);
+	Move *getChoice(SimTimer& timer, Loop *from, int *loop_idx, Loop **at);
 	double doChoice(Move *move, Loop **returnLoop, EnergyModel *energyModel);
 	void printMove(Loop *comefrom, char *structure_p, BaseType *seq_p);
 	BaseType *getLocation(Move *move, int index);
@@ -205,7 +205,7 @@ public:
 	friend Loop * Loop::performDeleteMove(Move *move, EnergyModel *energyModel);
 	friend void Loop::performComplexSplit(
 		Move *move, Loop **firstOpen, Loop **secondOpen, EnergyModel *energyModel);
-	string typeInternalsToString(void);
+	void typeInternalsToString(std::ostream&);
 
 private:
 	int sizes[2];
@@ -219,7 +219,7 @@ public:
 	void generateMoves(EnergyModel *energyModel);
 	void generateDeleteMoves(EnergyModel*);
 	void regenerateDeleteMoves(EnergyModel *energyModel);
-	Move *getChoice(SimTimer& timer, Loop *from);
+	Move *getChoice(SimTimer& timer, Loop *from, int *loop_idx, Loop **at);
 	double doChoice(Move *move, Loop **returnLoop, EnergyModel *energyModel);
 	void printMove(Loop *comefrom, char *structure_p, BaseType *seq_p);
 	BaseType *getLocation(Move *move, int index);
@@ -233,7 +233,7 @@ public:
 	friend Loop * Loop::performDeleteMove(Move *move, EnergyModel *energyModel);
 	friend void Loop::performComplexSplit(
 		Move *move, Loop **firstOpen, Loop **secondOpen, EnergyModel *energyModel);
-	string typeInternalsToString(void);
+	void typeInternalsToString(std::ostream&);
 
 private:
 	int *sidelen;
@@ -247,7 +247,7 @@ public:
 	void generateMoves(EnergyModel *energyModel);
 	void generateDeleteMoves(EnergyModel*);
 	void regenerateDeleteMoves(EnergyModel *energyModel);
-	Move *getChoice(SimTimer& timer, Loop *from);
+	Move *getChoice(SimTimer& timer, Loop *from, int *loop_idx, Loop **at);
 	double doChoice(Move *move, Loop **returnLoop, EnergyModel *energyModel);
 	void printMove(Loop *comefrom, char *structure_p, BaseType *seq_p);
 	BaseType *getLocation(Move *move, int index);
@@ -287,7 +287,7 @@ public:
 	friend Loop * Loop::performDeleteMove(Move *move, EnergyModel *energyModel);
 	friend void Loop::performComplexSplit(
 		Move *move, Loop **firstOpen, Loop **secondOpen, EnergyModel *energyModel);
-	string typeInternalsToString(void);
+	void typeInternalsToString(std::ostream&);
 	void parseLocalContext(int);
 
 	// non-private because we trust each other;

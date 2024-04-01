@@ -32,37 +32,25 @@ RateEnv::RateEnv(double mRate, EnergyModel* eModel, MoveType left, MoveType righ
 
 }
 
-std::ostream& operator<<(std::ostream& ss, RateEnv& env) {
+std::ostream& operator<<(std::ostream& str, RateEnv& env) {
 
-	ss << env.arrType << " ";
+	str << env.arrType << " ";
 
-	if (env.arrType < 100) {
+	if (env.arrType < 100)
+		str << " ";
 
-		ss << " ";
-
-	}
-
-	ss << moveutil::primeToDesc(int(env.arrType));
-	ss << "  " << env.rate << "   ";
-
-	return ss;
+	str << moveutil::primeToDesc(int(env.arrType)) << "  " << env.rate;
+	return str;
 
 }
 
-string RateEnv::toString(bool useArrhenius) {
+void RateEnv::toString(std::ostream& str, bool useArrhenius) {
 
-	stringstream ss;
-
-	if (useArrhenius) {
-
-		ss << *this;
-
-	} else {
-
-		ss << "  " << rate << "   ";
-
-	}
-	return ss.str();
+	str << std::scientific << std::setprecision(6);
+	if (useArrhenius)
+		str << *this;
+	else
+		str << rate;
 
 }
 
@@ -181,30 +169,19 @@ Loop *Move::doChoice(EnergyModel *energyModel) {
 		return NULL;
 }
 
-string Move::toString(bool useArrhenius) {
-
-	std::stringstream ss;
+void Move::toString(std::ostream& str, bool useArrhenius) {
 
 	// FD: print even if the rate equals 0
 
-	ss << "type=" << type << " desc:  ";
-	ss << utility::moveType(type) << " ";
-
-	if (affected[0] != NULL) {
-		ss << affected[0]->toStringShort() << " ";
-	}
-
-	if (affected[1] != NULL) {
-		ss << affected[1]->toStringShort();
-	}
-	ss << ", ";
-	ss << "(" << index[0] << ", " << index[1] << ", " << index[2] << ", " << index[3] << "),  ";
-
-	ss << rate.toString(useArrhenius) << "\n";
-
-	string output = ss.str();
-
-	return output;
+	utility::moveType(str, type);
+	str << " | ";
+	if (affected[0] != NULL)
+		str << affected[0];
+	if (affected[1] != NULL)
+		str << "," << affected[1];
+	str << " | (" << index[0] << "," << index[1] << "," << index[2] << "," << index[3] << ") | ";
+	rate.toString(str, useArrhenius);
+	str << endl;
 
 }
 
@@ -285,22 +262,23 @@ void MoveList::resetDeleteMoves(void) {
 	del_moves_index = 0;
 }
 
-void MoveList::printAllMoves(bool useArrhenius) {
-
+void MoveList::printAllMoves(vector<string>& moveInfo, EnergyModel * eModel) {
+	
+	stringstream ss;
+	
 	for (int i = 0; i < moves_index; i++) {
-
-		cout << "Move" << i << " ";
-		cout << moves[i]->toString(useArrhenius);
-
+		if (i > 0)
+			stringstream().swap(ss);
+		ss << "Move" << i << " | ";
+		moves[i]->toString(ss, eModel->useArrhenius());
+		moveInfo.push_back(ss.str());
 	}
-
 	for (int i = 0; i < del_moves_index; i++) {
-
-		cout << "Move" << i + moves_index << " ";
-		cout << del_moves[i]->toString(useArrhenius);
-
+		stringstream().swap(ss);
+		ss << "Move" << i + moves_index << " | ";
+		del_moves[i]->toString(ss, eModel->useArrhenius());
+		moveInfo.push_back(ss.str());
 	}
-
 }
 
 void MoveList::addMove(Move *newmove) {
@@ -364,7 +342,7 @@ Move *MoveList::getMove(Move *iterator) {
 }
 
 Move *MoveList::getChoice(SimTimer& timer) {
-
+	
 	double tmp;
 
 	for (int index = 0; index < moves_index + del_moves_index; index++) {

@@ -303,17 +303,17 @@ string identityToString(char loop) {
 	switch (loop) {
 
 	case 'O':
-		return "openloop";
+		return "open";
 	case 'S':
-		return "stackloop";
+		return "stack";
 	case 'M':
-		return "multiloop";
+		return "multi";
 	case 'B':
-		return "bulgeloop";
+		return "bulge";
 	case 'I':
-		return "interiorloop";
+		return "interior";
 	case 'H':
-		return "hairpinloop";
+		return "hairpin";
 
 	}
 
@@ -321,47 +321,34 @@ string identityToString(char loop) {
 	exit(1);
 }
 
-string Loop::toString() {
+void Loop::toString(std::ostream& str) {
 
-	std::stringstream ss;
-
-	ss << "***" << endl << identityToString(identity) << " adjacent ";
-
+	str << identityToString(identity) << " | ";
 	for (int i = 0; i < numAdjacent; i++) {
-
-		ss << identityToString(adjacentLoops[i]->identity) << ",";
-
+		if (i > 0)
+			str << ",";
+		str << identityToString(adjacentLoops[i]->identity);
 	}
-
-	ss << " dG=" << std::setprecision(3) << energy << "  |  ";
-	ss << this->typeInternalsToString();
-
-	return ss.str();
+	str << std::fixed << " | dG=" << energy << " | ";
+	typeInternalsToString(str);
 
 }
 
-string Loop::toStringShort(void) {
 
-	return identityToString(identity);
+std::ostream& operator<<(std::ostream& str, Loop* l) {
+
+	str << identityToString(l->identity);
+	return str;
 
 }
 
-void Loop::printAllMoves(Loop* from, bool useArrhenius) {
+void Loop::printAllMoves(std::vector<string>& moveInfo, Loop* from, EnergyModel* eModel) {
+	
+	moves->printAllMoves(moveInfo, eModel);
 
-	// Doing a short version of the print here
-	std::cout << toString();
-
-	moves->printAllMoves(useArrhenius);
-
-	for (int i = 0; i < numAdjacent; i++) {
-
-		if (adjacentLoops[i] != from) {
-
-			adjacentLoops[i]->printAllMoves(this, useArrhenius);
-
-		}
-
-	}
+	for (int i = 0; i < numAdjacent; i++)
+		if (adjacentLoops[i] != from)
+			adjacentLoops[i]->printAllMoves(moveInfo, this, eModel);
 
 }
 
@@ -2523,7 +2510,7 @@ void StackLoop::generateMoves(EnergyModel *energyModel) {
 
 	if (energyModel->simOptions->debug) {
 		cout << "StackLoop generating moves!" << endl;
-		cout << this->typeInternalsToString();
+		typeInternalsToString(cout);
 	}
 
 	generateDeleteMoves(energyModel);
@@ -2560,21 +2547,28 @@ void StackLoop::printMove(Loop *comefrom, char *structure_p, BaseType *seq_p) {
 	}
 }
 
-Move *StackLoop::getChoice(SimTimer& timer, Loop *from) {
+Move *StackLoop::getChoice(SimTimer& timer, Loop *from, int *loopIdx, Loop **ppLoop) {
 
 	Move *stor;
 
-	if (timer.wouldBeHit(totalRate)) // something was chosen, do this
+	if (timer.wouldBeHit(totalRate)) { // something was chosen, do this
+		if (loopIdx != NULL)
+			*ppLoop = this;
 		return moves->getChoice(timer);
+	}
 	else {
 		timer.checkHit(totalRate);
 		if (adjacentLoops[0] != from) {
-			stor = adjacentLoops[0]->getChoice(timer, this);
+			if (loopIdx != NULL)
+				*loopIdx += 1;
+			stor = adjacentLoops[0]->getChoice(timer, this, loopIdx, ppLoop);
 			if (stor != NULL)
 				return stor;
 		}
 		if (adjacentLoops[1] != from) {
-			stor = adjacentLoops[1]->getChoice(timer, this);
+			if (loopIdx != NULL)
+				*loopIdx += 1;
+			stor = adjacentLoops[1]->getChoice(timer, this, loopIdx, ppLoop);
 			if (stor != NULL)
 				return stor;
 		}
@@ -2646,17 +2640,13 @@ StackLoop::StackLoop(BaseType *seq1, BaseType *seq2, Loop *left, Loop *right) //
 
 }
 
-string StackLoop::typeInternalsToString(void) {
+void StackLoop::typeInternalsToString(std::ostream& str) {
 
-	std::stringstream ss;
-
-	ss << "(" << baseTypeString[seqs[0][0]] << "/";
-	ss << baseTypeString[seqs[1][1]] << ", ";
-	ss << baseTypeString[seqs[0][1]] << "/";
-	ss << baseTypeString[seqs[1][0]];
-	ss << ")" << endl;
-
-	return ss.str();
+	str << "(" << baseTypeString[seqs[0][0]] << "/";
+	str << baseTypeString[seqs[1][1]] << ", ";
+	str << baseTypeString[seqs[0][1]] << "/";
+	str << baseTypeString[seqs[1][0]];
+	str << ")" << endl;
 
 }
 
@@ -2686,13 +2676,10 @@ HairpinLoop::HairpinLoop(int size, BaseType *hairpin_sequence, Loop *previous) {
 	identity = 'H';
 }
 
-string HairpinLoop::typeInternalsToString(void) {
+void HairpinLoop::typeInternalsToString(std::ostream& str) {
 
-	std::stringstream ss;
-
-	ss << "seq= " << utility::sequenceToString(hairpin_seq, hairpinsize) << endl;
-
-	return ss.str();
+	utility::sequenceToString(str, hairpin_seq, hairpinsize);
+	str << endl;
 
 }
 
@@ -2705,16 +2692,21 @@ void HairpinLoop::calculateEnthalpy(EnergyModel *energyModel) {
 	enthalpy = energyModel->HairpinEnthalpy(hairpin_seq, hairpinsize);
 }
 
-Move *HairpinLoop::getChoice(SimTimer& timer, Loop *from) {
+Move *HairpinLoop::getChoice(SimTimer& timer, Loop *from, int *loopIdx, Loop **ppLoop) {
+
 	Move *stor;
 
-	if (timer.wouldBeHit(totalRate)) // something was chosen, do this
+	if (timer.wouldBeHit(totalRate)) { // something was chosen, do this
+		if (loopIdx != NULL)
+			*ppLoop = this;
 		return moves->getChoice(timer);
-	else {
+	} else {
 		timer.checkHit(totalRate);
-		if (adjacentLoops[0] != from) // should not occur, can remove later. FIXME
-				{
-			stor = adjacentLoops[0]->getChoice(timer, this);
+		if (adjacentLoops[0] != from) {
+			// should not occur, can remove later. FIXME
+			if (loopIdx != NULL)
+				*loopIdx += 1;
+			stor = adjacentLoops[0]->getChoice(timer, this, loopIdx, ppLoop);
 			if (stor != NULL)
 				return stor;
 		}
@@ -2785,7 +2777,7 @@ void HairpinLoop::generateMoves(EnergyModel *energyModel) {
 
 	if (energyModel->simOptions->debug) {
 		cout << "HairpinLoop generating moves!" << endl;
-		cout << this->typeInternalsToString();
+		typeInternalsToString(cout);
 	}
 
 	double energies[2];
@@ -2959,31 +2951,36 @@ BulgeLoop::BulgeLoop(int size1, int size2, BaseType *bulge_sequence1, BaseType *
 	identity = 'B';
 }
 
-string BulgeLoop::typeInternalsToString(void) {
+void BulgeLoop::typeInternalsToString(std::ostream& str) {
 
-	std::stringstream ss;
-
-	ss << " seq0=" << utility::sequenceToString(bulge_seq[0], bulgesize[0]) << endl;
-	ss << " seq1= " << utility::sequenceToString(bulge_seq[1], bulgesize[1]) << endl;
-
-	return ss.str();
+	utility::sequenceToString(str, bulge_seq[0], bulgesize[0]);
+	str << " -- ";
+	utility::sequenceToString(str, bulge_seq[1], bulgesize[1]);
+	str << endl;
 
 }
 
-Move *BulgeLoop::getChoice(SimTimer& timer, Loop *from) {
+Move *BulgeLoop::getChoice(SimTimer& timer, Loop *from, int *loopIdx, Loop **ppLoop) {
+
 	Move *stor;
 
-	if (timer.wouldBeHit(totalRate)) // something was chosen, do this
+	if (timer.wouldBeHit(totalRate)) { // something was chosen, do this
+		if (loopIdx != NULL)
+			*ppLoop = this;
 		return moves->getChoice(timer);
-	else {
+	} else {
 		timer.checkHit(totalRate);
 		if (adjacentLoops[0] != from) {
-			stor = adjacentLoops[0]->getChoice(timer, this);
+			if (loopIdx != NULL)
+				*loopIdx += 1;
+			stor = adjacentLoops[0]->getChoice(timer, this, loopIdx, ppLoop);
 			if (stor != NULL)
 				return stor;
 		}
 		if (adjacentLoops[1] != from) {
-			stor = adjacentLoops[1]->getChoice(timer, this);
+			if (loopIdx != NULL)
+				*loopIdx += 1;
+			stor = adjacentLoops[1]->getChoice(timer, this, loopIdx, ppLoop);
 			if (stor != NULL)
 				return stor;
 		}
@@ -3061,7 +3058,7 @@ void BulgeLoop::generateMoves(EnergyModel *energyModel) {
 
 	if (energyModel->simOptions->debug) {
 		cout << "BulgeLoop generating moves!" << endl;
-		cout << this->typeInternalsToString();
+		typeInternalsToString(cout);
 	}
 
 	double energies[2];
@@ -3249,31 +3246,36 @@ InteriorLoop::InteriorLoop(int size1, int size2, BaseType *int_seq1, BaseType *i
 
 }
 
-string InteriorLoop::typeInternalsToString(void) {
+void InteriorLoop::typeInternalsToString(std::ostream& str) {
 
-	std::stringstream ss;
-
-	ss << " seq0=" << utility::sequenceToString(int_seq[0], sizes[0] + 1) << endl;
-	ss << " seq1=" << utility::sequenceToString(int_seq[1], sizes[1] + 1) << endl;
-
-	return ss.str();
+	utility::sequenceToString(str, int_seq[0], sizes[0] + 1);
+	str << " -- ";
+	utility::sequenceToString(str, int_seq[1], sizes[1] + 1);
+	str << endl;
 
 }
 
-Move *InteriorLoop::getChoice(SimTimer& timer, Loop *from) {
+Move *InteriorLoop::getChoice(SimTimer& timer, Loop *from, int *loopIdx, Loop **ppLoop) {
+
 	Move *stor;
 
-	if (timer.wouldBeHit(totalRate)) // something was chosen, do this
+	if (timer.wouldBeHit(totalRate)) { // something was chosen, do this
+		if (loopIdx != NULL)
+			*ppLoop = this;
 		return moves->getChoice(timer);
-	else {
+	} else {
 		timer.checkHit(totalRate);
 		if (adjacentLoops[0] != from) {
-			stor = adjacentLoops[0]->getChoice(timer, this);
+			if (loopIdx != NULL)
+				*loopIdx += 1;
+			stor = adjacentLoops[0]->getChoice(timer, this, loopIdx, ppLoop);
 			if (stor != NULL)
 				return stor;
 		}
 		if (adjacentLoops[1] != from) {
-			stor = adjacentLoops[1]->getChoice(timer, this);
+			if (loopIdx != NULL)
+				*loopIdx += 1;
+			stor = adjacentLoops[1]->getChoice(timer, this, loopIdx, ppLoop);
 			if (stor != NULL)
 				return stor;
 		}
@@ -3428,7 +3430,7 @@ void InteriorLoop::generateMoves(EnergyModel *energyModel) {
 
 	if (energyModel->simOptions->debug) {
 		cout << "InteriorLoop generating moves!" << endl;
-		cout << this->typeInternalsToString();
+		typeInternalsToString(cout);
 	}
 
 	double energies[2];
@@ -3662,35 +3664,32 @@ MultiLoop::~MultiLoop(void) {
 
 }
 
-string MultiLoop::typeInternalsToString(void) {
+void MultiLoop::typeInternalsToString(std::ostream& str) {
 
-	std::stringstream ss;
-
-	ss << "numAdjacent = " << numAdjacent << ", sideLength = ";
-
+	str << "(";
 	for (int i = 0; i < numAdjacent; i++) {
-
-		ss << sidelen[i] << ",";
-
+		if (i > 0)
+			str << ",";
+		str << sidelen[i];
 	}
-
-	ss << 0 << endl;
-
-	return ss.str();
-
+	str << ")" << endl;
 }
 
-Move *MultiLoop::getChoice(SimTimer& timer, Loop *from) {
+Move *MultiLoop::getChoice(SimTimer& timer, Loop *from, int *loopIdx, Loop **ppLoop) {
 
 	Move *stor;
 
-	if (timer.wouldBeHit(totalRate)) // something was chosen, do this
+	if (timer.wouldBeHit(totalRate)) {
+		if (loopIdx != NULL)
+			*ppLoop = this;
 		return moves->getChoice(timer);
-	else {
+	} else {
 		timer.checkHit(totalRate);
 		for (int loop = 0; loop < curAdjacent; loop++)
 			if (adjacentLoops[loop] != from) {
-				stor = adjacentLoops[loop]->getChoice(timer, this);
+				if (loopIdx != NULL)
+					*loopIdx += 1;
+				stor = adjacentLoops[loop]->getChoice(timer, this, loopIdx, ppLoop);
 				if (stor != NULL)
 					return stor;
 			}
@@ -3924,7 +3923,7 @@ void MultiLoop::generateMoves(EnergyModel *energyModel) {
 
 	if (energyModel->simOptions->debug) {
 		cout << "MultiLoop generating moves!" << endl;
-		cout << this->typeInternalsToString();
+		typeInternalsToString(cout);
 	}
 
 	int loop, loop2, loop3, loop4, temploop, tempindex, loops[4];
@@ -4288,20 +4287,14 @@ OpenLoop::OpenLoop(int branches, int *sidelengths, BaseType **sequences) {
 
 }
 
-string OpenLoop::typeInternalsToString(void) {
+void OpenLoop::typeInternalsToString(std::ostream& str) {
 
-	std::stringstream ss;
 	for (int i = 0; i < numAdjacent + 1; i++) {
-
-		ss << utility::sequenceToString(seqs[i], sidelen[i]) << "  -- ";
-
+		if (i > 0)
+			str << " -- ";
+		utility::sequenceToString(str, seqs[i], sidelen[i]);
 	}
-
-	ss << "  (size = " << numAdjacent << ")" << endl;
-	ss << openInfo;
-
-	return ss.str();
-
+	str << endl << openInfo;
 }
 
 void OpenLoop::calculateEnergy(EnergyModel *energyModel) {
@@ -4315,17 +4308,21 @@ void OpenLoop::calculateEnthalpy(EnergyModel *energyModel) {
 
 }
 
-Move *OpenLoop::getChoice(SimTimer& timer, Loop *from) {
+Move *OpenLoop::getChoice(SimTimer& timer, Loop *from, int *loopIdx, Loop **ppLoop) {
 
 	Move *stor;
-
-	if (timer.wouldBeHit(totalRate)) { // something was chosen, do this
+	
+	if (timer.wouldBeHit(totalRate)) {
+		if (loopIdx != NULL)
+			*ppLoop = this;
 		return moves->getChoice(timer);
 	} else {
 		timer.checkHit(totalRate);
 		for (int loop = 0; loop < curAdjacent; loop++) {
 			if (adjacentLoops[loop] != from) {
-				stor = adjacentLoops[loop]->getChoice(timer, this);
+				if (loopIdx != NULL)
+					*loopIdx += 1;
+				stor = adjacentLoops[loop]->getChoice(timer, this, loopIdx, ppLoop);
 				if (stor != NULL)
 					return stor;
 			}
@@ -4538,7 +4535,7 @@ void OpenLoop::generateMoves(EnergyModel *energyModel) {
 
 	if (energyModel->simOptions->debug) {
 		cout << "OpenLoop generating moves!" << endl;
-		cout << this->typeInternalsToString();
+		typeInternalsToString(cout);
 	}
 
 	int loop, loop2, loop3, loop4, temploop, tempindex, loops[4];

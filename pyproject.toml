@@ -2,6 +2,20 @@
 # Copyright (c) 2008-2023 California Institute of Technology. All rights reserved.
 # The Multistrand Team (help@multistrand.org)
 
+# package ======================================================================
+
 [build-system]
 requires = ["setuptools>=65", "wheel"]
 build-backend = "setuptools.build_meta"
+
+# unit tests ===================================================================
+
+[tool.pytest.ini_options]
+minversion = 7.3
+addopts = "-v -r a -n auto"
+testpaths = ["test"]
+python_files = ["test*.py", "Test*.py"]
+norecursedirs = [".git", ".cache", ".tox", ".ropeproject", "build"]
+filterwarnings = [
+    'ignore:\s.*Pyarrow:DeprecationWarning:nupack',
+]

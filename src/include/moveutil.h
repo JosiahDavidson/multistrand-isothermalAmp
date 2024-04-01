@@ -138,6 +138,8 @@ struct HalfContext {
 struct JoinCriteria {
 
 	JoinCriteria();
+	void printBasePair(std::ostream&);
+	void printComplexPair(std::ostream&);
 	friend std::ostream& operator<<(std::ostream&, JoinCriteria&);
 
 	StrandComplex* complexes[2] = { NULL, NULL };

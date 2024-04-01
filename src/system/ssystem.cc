@@ -307,7 +307,8 @@ void SimulationSystem::SimulationLoop_Trajectory() {
 
 		if (simOptions->debug) {
 			cout << "Printing my complexlist! *************************************** \n";
-			cout << complexList->toString() << endl;
+			complexList->toString(cout);
+			cout<< endl;
 		}
 
 		if (exportStatesTime) {
@@ -528,7 +529,8 @@ void SimulationSystem::SimulationLoop_FirstStep(void) {
 
 		if (simOptions->debug) {
 			cout << "Printing my complexlist! *************************************** \n";
-			cout << complexList->toString() << endl;
+			complexList->toString(cout);
+			cout << endl;
 		}
 
 		// trajectory output via outputtime option
@@ -792,34 +794,208 @@ void SimulationSystem::exportInterval(double simTime, long transitionCount, doub
 
 }
 
-void SimulationSystem::printAllMoves() {
+/*
+ * uniform=false: correct elementary rates
+ * uniform=true: uniform event space parametrization (all elementary rates = 1.0)
+ */
+void SimulationSystem::initializeTransitions(PyObject *start_state, bool uniform) {
+
+	InitializeSystem(start_state);
+	energyModel->inspection = uniform;
 
 	complexList->initializeList();
-
-	// also generate the half contexts
+	// required to compute join rates
 	complexList->updateOpenInfo();
-
-	complexList->printComplexList();
-
-	startState->printAllMoves(energyModel->useArrhenius());
+	// required to set cumulative join rate
+	complexList->getTotalFlux();
 
 }
 
-// FD: a simple peak into the initial state
-void SimulationSystem::initialInfo(void) {
+/*
+ * Given string representations of sequence and structure (held by a Python object),
+ * wastefully iterate through adjacent states, i.e., obtain the (C++) `StrandComplex`
+ * instances resulting from applying `StrandComplex::doChoice()` for each `Move`
+ * in the `MoveContainer`. In mathematical terms, `StrandComplex` is a state representation,
+ * whereas `Move` is a state action representation.
+ *
+ * This recursion scheme was introduced for `SimulationSystem::localTransitions()`
+ * in the context of the "pathway elaboration" method, and is now also used in refactored
+ * form to add adjacent state information to the state introspection in
+ * `SimulationSystem::stateInfo()`. These two evaluation strategies are controlled
+ * by the `send` and `print` arguments.
+ * 
+ * NOTE:
+ * -----
+ *
+ * Unfortunately, extracting this information currently requires reinitializing the
+ * `SimulationSystem` *for each move*, i.e., repeatedly recomputing the entire loop graph
+ * and the associated tree of cumulative transition rates, even though the initial state
+ * is semantically constant. The state action is then executed for each move by hijacking
+ * the kinetic Monte Carlo (SSA) machinery as a random variable over elementary transitions,
+ * and the outer loop uses `SimTimer` as a parametrization of this random variable's
+ * event space, after artificially uniformizing all elementary rates.
+ *
+ * This workaround is a consequence of Multistrand's core design, in which the runtime
+ * representation of states and transitions is a network of mutable objects with mutual
+ * pointer references, and in which state actions are implemented as a wave of object
+ * creations, mutations and deletions in this graph. Hence, the information required
+ * to recover a previous state is in part deleted and in part spread over the heap, and
+ * `InitializeSystem()` ends up being the least redundant entry point in the existing
+ * code base for safely reconstructing a previous state.
+ 
+ * If state actions (and their pre- and post-conditions) had *serializable specifications*
+ * instead, -- as is already the case for states via the dot-parentheses notation --
+ * then the simulation loop could be implemented as a "handler" for "transactions" or
+ * "algebraic effects", and this method could use reverse actions (or deep copies)
+ * to achieve its task more efficiently. This, however, would amount to a reimplementation
+ * of all core data structures.
+ */
+void SimulationSystem::iterateTransitions(
+	PyObject *start_state, bool uni, bool send, bool print,
+	std::vector<string>* uniMoveInfo) {
 
-	if (InitializeSystem() != 0)
-		return;
+	initializeTransitions(start_state, true);
 
-	printAllMoves();
+	// iterator bounds
+	int Nuni = complexList->getMoveCount(),
+	    Nbi = int(round(complexList->getJoinFlux()));
+	int lo = uni ? Nbi : 0,
+	    hi = uni ? Nbi + Nuni : Nbi;
 
-	// print info on bimolecular rates
-	double biRate = complexList->getJoinFlux();
-	cout << endl << "JoinFlux = " << biRate << endl;
-	biRate = biRate / energyModel->applyPrefactors(energyModel->getJoinRate(), loopMove, loopMove);
-	cout << "#nucleotide joins = " << biRate << endl;
-	cout << "joinrate = " << energyModel->applyPrefactors(energyModel->getJoinRate(), loopMove, loopMove) << " /s" << endl;
-	cout << "join concentration = " << energyModel->simOptions->energyOptions->getJoinConcentration() << endl << flush;
+	string csep, lsep;
+	if (print) {
+	    csep  = "----------------------------------------";
+	    lsep  = "********************";
+		cout << (uni ? "[uni]" : "[bi]") << endl;
+	}
+
+	// iterator state
+	int complexId0 = 0, complexId1 = 0, complexId0_new = 0, complexId1_new = 0,
+	    loopIdx = 0, loopIdx_new = 0;
+	bool complexChange;
+	std::vector<string>::iterator uniMoveIter;
+	if (uniMoveInfo != NULL) {
+		assert (print);
+		assert (uni);
+		uniMoveIter = uniMoveInfo->begin();
+	}
+	stringstream info0, info1;
+
+	// iteration
+	for (int i = lo; i < hi; i++) {
+		
+		if (i > lo)
+			initializeTransitions(start_state, true);
+
+		// rely on event space parametrization
+		SimTimer myTimer(*simOptions);
+		myTimer.rchoice = i + 0.01;
+
+		// export the initial state
+		if (send && exportStatesInterval)
+			exportInterval(myTimer.stime, 0, 8888);
+
+		// move the state using the i-th transition
+		double ArrMoveType = complexList->doBasicChoice(
+			myTimer, &complexId0_new, &complexId1_new, &loopIdx_new,
+			&info0, &info1);
+
+		if (print) {
+			// print complex/complex pair/loop subheaders on change
+			complexChange =
+				i == lo || complexId0_new != complexId0
+				        || complexId1_new != complexId1;
+			if (complexChange) {
+				cout << csep << endl;
+				if (uni)
+					cout << "Complex" << complexId0_new << endl;
+				else
+					cout << "Complexes: "
+					     << complexId0_new << "," << complexId1_new << endl
+					     << info0.str();
+				cout << csep << endl;
+			}
+			if (complexChange || loopIdx_new != loopIdx) {
+				if (uni)
+					cout << lsep << endl
+						 << info0.str()
+						 << lsep << endl;
+			}
+
+			// print move/join information
+			if (uni)
+				cout << *uniMoveIter;
+			else
+				cout << "Join" << i << " | " << info1.str() << endl;
+
+			// print adjacent state information
+			complexList->printStructures(cout);
+
+			// advance iterator
+			complexId0 = complexId0_new;
+			complexId1 = complexId1_new;
+			complexId0_new = complexId1_new = 0;
+			loopIdx = loopIdx_new;
+			loopIdx_new = 0;
+			if (uni)
+				uniMoveIter++;
+			else
+				stringstream().swap(info1);
+			stringstream().swap(info0);
+		}
+
+		// export the state after the transition
+		if (send) {
+			if (exportStatesInterval)
+				exportInterval(myTimer.stime, 1, ArrMoveType);
+			finalizeRun();
+		}
+
+	}
+	
+	if (print)
+		cout << endl << flush;
+}
+
+void SimulationSystem::stateInfo(PyObject *start_state) {
+
+	initializeTransitions(start_state, false);
+
+	// print strand complexes
+	string hline = "========================================";
+	cout << hline << endl;
+	complexList->printComplexList(cout);
+
+	// print (cumulative) transition rates
+	int moveCount = complexList->getMoveCount();
+	double moveFlux = complexList->getMoveFlux(),
+	       joinFlux = complexList->getJoinFlux(),
+		   joinRate = energyModel->applyPrefactors(
+	           energyModel->getJoinRate(), loopMove, loopMove),
+		   joinConc = energyModel->simOptions->energyOptions->getJoinConcentration();
+	cout << endl << hline << endl
+	     << "# unimol. steps   = " << moveCount << endl
+		 // this ratio assumes a Metropolis model (context-independent rates)
+	     << "# bimol.  steps   = " << int(joinFlux / joinRate) << endl
+		 << "unimol. cum. rate = " << moveFlux << " /s" << endl
+		 << "bimol.  cum. rate = " << joinFlux << " /s" << endl
+	     << "bimol.  step rate = " << joinRate << " /s" << endl
+	     << "join conc.        = " << joinConc << endl
+		 << endl << flush;
+	
+	// store unimolecular elementary transitions
+	// (correct rates, but without adjacent states)
+	std::vector<string> uniMoveInfo;
+	uniMoveInfo.reserve(moveCount);
+	complexList->printAllMoves(uniMoveInfo);
+
+	// print elementary moves & adjacent states
+	// (iterate with incorrect rates, splice in correct rates)
+	bool send = false, print = true;
+	cout << hline << endl;
+	iterateTransitions(start_state, true, send, print, &uniMoveInfo);
+	cout << hline << endl;
+	iterateTransitions(start_state, false, send, print);
 
 }
 
@@ -828,42 +1004,11 @@ void SimulationSystem::initialInfo(void) {
 void SimulationSystem::localTransitions(void) {
 
 	assert(simOptions->statespaceActive);
-	energyModel->inspection = true;
-
 	InitializeRNG(); // the output dir will be '0' if unset
-	InitializeSystem();
-	complexList->initializeList();
-	complexList->updateOpenInfo();
 
-	int N = complexList->getMoveCount();
-	int collisions = int(round(complexList->getJoinFlux()));
-
-	for (int i = 0; i < (N + collisions); i++) {
-
-		InitializeSystem();
-		complexList->initializeList();
-		complexList->updateOpenInfo();
-		complexList->getTotalFlux();	 // required to set joinrate
-
-		SimTimer myTimer(*simOptions);
-		myTimer.rchoice = i + 0.01;
-
-		// export the initial state
-		if (exportStatesInterval) {
-			exportInterval(myTimer.stime, 0, 8888);
-		}
-
-		// move the state using the i-th transition
-		double ArrMoveType = complexList->doBasicChoice(myTimer);
-
-		// export the state after the transition
-		if (exportStatesInterval) {
-			exportInterval(myTimer.stime, 1, ArrMoveType);
-		}
-
-		finalizeRun();
-
-	}
+	bool send = true, print = false;
+	iterateTransitions(NULL, false, send, print);
+	iterateTransitions(NULL, true, send, print);
 
 	finalizeSimulation();
 

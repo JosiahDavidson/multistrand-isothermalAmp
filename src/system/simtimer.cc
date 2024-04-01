@@ -29,6 +29,7 @@ void SimTimer::advanceTime(void) {
 
 // returns TRUE if this transition needs to be executed.
 bool SimTimer::wouldBeHit(const double rate) {
+
 	return rchoice < rate;
 }
 
@@ -62,10 +63,8 @@ bool SimTimer::checkForNewNucleotide(void) {
 
 std::ostream& operator<<(std::ostream& ss, SimTimer& timer) {
 
-	ss << "rchoice ";
-	ss << timer.rchoice << "  rate  ";
-	ss << timer.rate << "  simTime  ";
-	ss << timer.stime << "\n";
-
+	ss << "[rchoice=" << timer.rchoice
+	   << ", rate=" << timer.rate
+	   << ", simTime=" << timer.stime << "]" << std::endl;
 	return ss;
 }

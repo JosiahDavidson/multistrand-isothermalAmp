@@ -23,7 +23,7 @@ from multistrand.utils.thermo import C2K
 
 @pytest.mark.parametrize("kinetics",
                          ["JSMetropolis25", "DNA23Metropolis", "DNA23Arrhenius"])
-class Test_InitialInfo:
+class Test_StateInfo:
     """
     Check the successful and deterministic construction of the initial SimSystem
     state for a variety of system specifications.
@@ -43,13 +43,13 @@ class Test_InitialInfo:
                 "CLOSED", [(stop_complex, Literals.dissoc_macrostate, 2)])])
 
     @staticmethod
-    def print_initialInfo(opt: Options):
+    def print_stateInfo(opt: Options):
         opt.verbosity = 1
         sim = SimSystem(opt)
-        sim.initialInfo()
+        sim.stateInfo()
 
     @classmethod
-    def compare_initialInfo(cls, opt: Options, kinetics: str,
+    def compare_stateInfo(cls, opt: Options, kinetics: str,
                             capfd: Optional[pytest.CaptureFixture]):
         """
         Test helper. Call with `capfd=None` to debug without Pytest.
@@ -59,11 +59,11 @@ class Test_InitialInfo:
 
         # initialise full simulator state twice
         _ = None if capfd is None else capfd.readouterr()
-        cls.print_initialInfo(opt)
+        cls.print_stateInfo(opt)
         capture1 = None if capfd is None else capfd.readouterr()
         if capfd is None:
             print(50 * '-')
-        cls.print_initialInfo(opt)
+        cls.print_stateInfo(opt)
         capture2 = None if capfd is None else capfd.readouterr()
 
         # compare & check outputs
@@ -72,10 +72,13 @@ class Test_InitialInfo:
             print(50 * '-')
             assert capture1.out == capture2.out != ""
             assert capture1.err == capture2.err == ""
-            assert capture1.out.startswith("Complex ")
-            assert all(capture1.out.find(s) > 0 for s in
-                       ["seq", "struc", "energy-ms", "energy-nu", "***",
-                        "JoinFlux", "joinrate"])
+            assert capture1.out.startswith("===")
+            expected_lexemes = [
+                "Complex", "sequence", "structure", "energy (ms, nu)", "rate, temp",
+                "# unimol. steps", "# bimol.  steps", 
+                "unimol. cum. rate", "bimol.  cum. rate",
+                "[uni]", "[bi]", "---", "> "]
+            assert all(capture1.out.find(l) > 0 for l in expected_lexemes)
 
     @classmethod
     def debug_single_test(cls, test_id: str, *args):
@@ -96,7 +99,7 @@ class Test_InitialInfo:
         stop_complex = Complex(strands=[incoming, substrate], structure="((+))")
         opt = self.create_options([start_complex1, start_complex2], stop_complex)
         opt.join_concentration = 1e-9
-        self.compare_initialInfo(opt, kinetics, capfd)
+        self.compare_stateInfo(opt, kinetics, capfd)
 
     @pytest.mark.parametrize("top0, top1, toehold, bottom",
                              [("ACT", "GAC", "TG", ""),
@@ -119,7 +122,7 @@ class Test_InitialInfo:
         start_complex = Complex(strands=[left, right, substrate], structure="(.+.(+).)")
         stop_complex = Complex(strands=[left, right, substrate], structure="..+..+...")
         opt = self.create_options([start_complex], stop_complex)
-        self.compare_initialInfo(opt, kinetics, capfd)
+        self.compare_stateInfo(opt, kinetics, capfd)
 
     @pytest.mark.parametrize("top, bottom",
                              [("TTT", "AAA"), ("TGG", "CCA")])
@@ -138,7 +141,7 @@ class Test_InitialInfo:
         start = Complex(strands=[substrate, invading], structure=start_struct)
         stop = Complex(strands=[substrate, invading], structure="...+...")
         opt = self.create_options([start], stop)
-        self.compare_initialInfo(opt, kinetics, capfd)
+        self.compare_stateInfo(opt, kinetics, capfd)
 
     def test_3(self, kinetics: str, capfd: pytest.CaptureFixture):
         """
@@ -178,7 +181,7 @@ class Test_InitialInfo:
                       useArrRates=True, verbosity=0)
         opt.start_state = [start_complex_top, start_complex_bot]
         opt.stop_conditions = [success_stop_condition, failed_stop_condition]
-        self.compare_initialInfo(opt, kinetics, capfd)
+        self.compare_stateInfo(opt, kinetics, capfd)
 
     def test_4(self, kinetics: str, capfd: pytest.CaptureFixture):
         """
@@ -198,7 +201,7 @@ class Test_InitialInfo:
         start_complex = Complex(strands=[incoming, substrate], structure=".(+).")
         stop_complex = Complex(strands=[incoming], structure="..")
         opt = self.create_options([start_complex], stop_complex)
-        self.compare_initialInfo(opt, kinetics, capfd)
+        self.compare_stateInfo(opt, kinetics, capfd)
 
     def test_5(self, kinetics: str, capfd: pytest.CaptureFixture):
         """
@@ -223,7 +226,7 @@ class Test_InitialInfo:
         start_complex = Complex(strands=[left, right, substrate], structure="(.(+).(+).)")
         stop_complex = Complex(strands=[left, right, substrate], structure="...+...+...")
         opt = self.create_options([start_complex], stop_complex)
-        self.compare_initialInfo(opt, kinetics, capfd)
+        self.compare_stateInfo(opt, kinetics, capfd)
 
     @pytest.mark.parametrize("toehold_seq, toehold_seq2, domain_seq",
                              [("CCC", "TTT", "AA"),
@@ -241,7 +244,7 @@ class Test_InitialInfo:
         start_complex = Complex(strands=[incoming, substrate], structure="(.(+).)")
         stop_complex = Complex(strands=[incoming, substrate], structure="...+...")
         opt = self.create_options([start_complex], stop_complex)
-        self.compare_initialInfo(opt, kinetics, capfd)
+        self.compare_stateInfo(opt, kinetics, capfd)
 
     def test_7(self, kinetics: str, capfd: pytest.CaptureFixture):
         """
@@ -259,7 +262,7 @@ class Test_InitialInfo:
         start_complex = Complex(strands=[incoming, substrate], structure="(.(+))")
         stop_complex = Complex(strands=[incoming], structure="...")
         opt = self.create_options([start_complex], stop_complex)
-        self.compare_initialInfo(opt, kinetics, capfd)
+        self.compare_stateInfo(opt, kinetics, capfd)
 
     def test_8(self, kinetics: str, capfd: pytest.CaptureFixture):
         """
@@ -274,7 +277,7 @@ class Test_InitialInfo:
         start_complex = Complex(strands=[incoming], structure="(.)")
         stop_complex = Complex(strands=[incoming], structure="...")
         opt = self.create_options([start_complex], stop_complex)
-        self.compare_initialInfo(opt, kinetics, capfd)
+        self.compare_stateInfo(opt, kinetics, capfd)
 
     def test_9(self, kinetics: str, capfd: pytest.CaptureFixture):
         """
@@ -294,7 +297,7 @@ class Test_InitialInfo:
         start_complex = Complex(strands=[right, left, substrate], structure="(.+(.+))")
         stop_complex = Complex(strands=[substrate], structure="..")
         opt = self.create_options([start_complex], stop_complex)
-        self.compare_initialInfo(opt, kinetics, capfd)
+        self.compare_stateInfo(opt, kinetics, capfd)
 
     def test_10(self, kinetics: str, capfd: pytest.CaptureFixture):
         """
@@ -308,7 +311,7 @@ class Test_InitialInfo:
         complex1 = makeComplex([seq0, seq1], dotparen1)
         complex2 = makeComplex([seq2], dotparen2)
         opt = self.create_options([complex1], complex2)
-        self.compare_initialInfo(opt, kinetics, capfd)
+        self.compare_stateInfo(opt, kinetics, capfd)
 
     def test_11(self, kinetics: str, capfd: pytest.CaptureFixture):
         """
@@ -321,7 +324,7 @@ class Test_InitialInfo:
         complex1 = makeComplex([seq0, seq1, seq2], struc1)
         complex2 = makeComplex([seq0, seq1, seq2], struc1)
         opt = self.create_options([complex1], complex2)
-        self.compare_initialInfo(opt, kinetics, capfd)
+        self.compare_stateInfo(opt, kinetics, capfd)
 
     def test_12(self, kinetics: str, capfd: pytest.CaptureFixture):
         """
@@ -343,7 +346,7 @@ class Test_InitialInfo:
         complex1 = makeComplex([seq0, seq1, seq2], struc1)
         complex2 = makeComplex([seq0, seq1, seq2], struc1)
         opt = self.create_options([complex1], complex2)
-        self.compare_initialInfo(opt, kinetics, capfd)
+        self.compare_stateInfo(opt, kinetics, capfd)
 
     def test_13(self, kinetics: str, capfd: pytest.CaptureFixture):
         """
@@ -356,13 +359,14 @@ class Test_InitialInfo:
         complex1 = makeComplex([seq0, seq1, seq2], struc1)
         opt = self.create_options([complex1], complex1)
         opt.join_concentration = 1.0e-9
-        self.compare_initialInfo(opt, kinetics, capfd)
+        self.compare_stateInfo(opt, kinetics, capfd)
 
 
 # ==============================================================================
 
 
 if __name__ == "__main__":
-    test_id = "0"
-    test_args = [("CC", "CAAC")]
-    Test_InitialInfo.debug_single_test(test_id, *test_args)
+    test_id, test_args  = "0", [("CC", "CAAC")]
+    # test_id, test_args  = "2", ["TGG", "CCA", "(..+..)"]
+    # test_id, test_args  = "13", []
+    Test_StateInfo.debug_single_test(test_id, *test_args)

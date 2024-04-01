@@ -20,11 +20,9 @@ char* utility::copyToCharArray(string& myString) {
 
 }
 
-string utility::sequenceToString(BaseType* sequence, int size) {
+void utility::sequenceToString(std::ostream& str, BaseType* sequence, int size) {
 
 	// the first and final character is the paired base -- adjust the print for this.
-
-	std::stringstream ss;
 
 	BaseType preBase = (BaseType) sequence[0];
 	BaseType postBase = (BaseType) sequence[size + 1];
@@ -32,26 +30,14 @@ string utility::sequenceToString(BaseType* sequence, int size) {
 	if (preBase < 0 || preBase > 5) {
 		cout << "Warning! prebase is outside of range" << endl;
 	}
-
 	if (postBase < 0 || postBase > 5) {
 		cout << "Warning! postbase is outside of range: " << postBase <<endl;
 	}
 
-	ss << "";
-	ss << baseTypeString[(BaseType) sequence[0]];
-	ss << ":";
-
-	for (int i = 1; i < size + 1; i++) {
-
-		ss << baseTypeString[(BaseType) sequence[i]];
-
-	}
-
-	ss << ":";
-	ss << baseTypeString[(BaseType) sequence[size + 1]];
-	ss << "";
-
-	return ss.str();
+	str << baseTypeString[(BaseType) sequence[0]] << ":";
+	for (int i = 1; i < size + 1; i++)
+		str << baseTypeString[(BaseType) sequence[i]];
+	str << ":" << baseTypeString[(BaseType) sequence[size + 1]];
 
 }
 
@@ -64,54 +50,21 @@ string utility::copyToString(char* inputCharArray) {
 
 }
 
-string utility::moveType(int type) {
+void utility::moveType(std::ostream& str, int type) {
 
-	std::stringstream ss;
-
-	if (type & MOVE_INVALID) {
-
-		ss << "invalid";
-
-	}
-
-	if (type & MOVE_CREATE) {
-
-		ss << "create";
-
-	}
-
-	if (type & MOVE_DELETE) {
-
-		ss << "delete";
-
-	}
-
-	if (type & MOVE_SHIFT) {
-
-		ss << "shift";
-
-	}
-
-	if (type & MOVE_1) {
-
-		ss << "_1, ";
-
-	}
-
-	if (type & MOVE_2) {
-
-		ss << "_2, ";
-
-	}
-
-	if (type & MOVE_3) {
-
-		ss << "_3, ";
-
-	}
-
-	string output = ss.str();
-
-	return output;
+	if (type & MOVE_INVALID)
+		str << "invalid";
+	if (type & MOVE_CREATE)
+		str << "create";
+	if (type & MOVE_DELETE)
+		str << "delete";
+	if (type & MOVE_SHIFT)
+		str << "shift";
+	if (type & MOVE_1)
+		str << "_1";
+	if (type & MOVE_2)
+		str << "_2";
+	if (type & MOVE_3)
+		str << "_3";
 
 }

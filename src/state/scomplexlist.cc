@@ -67,27 +67,21 @@ void SComplexListEntry::fillData(EnergyModel *em) {
 	rate = thisComplex->getTotalFlux();
 }
 
-string SComplexListEntry::toString(EnergyModel *em) {
-
-	std::stringstream ss;
+void SComplexListEntry::toString(std::ostream& str, EnergyModel *em) {
 
 	// more comparable to NUPACK  - - FD replace assoEnergy with 2.44
 	double printEnergy = (energy - (em->getVolumeEnergy() + em->getAssocEnergy()) * (thisComplex->getStrandCount() - 1));
-
-	ss << "Complex         : " << id << " \n";
-	ss << "seq, struc      : " << thisComplex->getSequence() << " - " << thisComplex->getStructure() << " \n";
-	ss << "energy-ms       : " << energy << endl;
-	ss << "energy-nu,rate  : " << printEnergy << " - " << rate << "     (T=" << em->simOptions->energyOptions->getTemperature() << ")";
-	ss << "\n";
+	
+	str << std::scientific << std::setprecision(6);
+	str << "Complex         : " << id << endl;
+	str << "sequence        : " << thisComplex->getSequence() << endl;
+	str << "structure       : " << thisComplex->getStructure() << endl;
+	str << "energy (ms, nu) : " << energy << ", " << printEnergy << endl;
+	str << "rate, temp      : " << rate << ", " << em->simOptions->energyOptions->getTemperature() << endl;
 
 	// also print info on the openloop datastructures
 	// FD: removing this from the print because it was used for debugging mainly. (april 2017)
-	// ss << thisComplex->ordering->toString();
-
-	// also print moves components.
-//	thisComplex->printAllMoves();
-
-	return ss.str();
+	// str << thisComplex->ordering->toString();
 
 }
 
@@ -167,20 +161,19 @@ void SComplexList::regenerateMoves(EnergyModel *energyModel) {
 
 }
 
-double SComplexList::getTotalFlux(void) {
+double SComplexList::getMoveFlux(void) {
 
 	double total = 0.0;
-
-	for (SComplexListEntry *temp = first; temp != NULL; temp = temp->next) {
-
+	for (SComplexListEntry *temp = first; temp != NULL; temp = temp->next)
 		total += temp->rate;
+	return total;
 
-	}
+}
+
+double SComplexList::getTotalFlux(void) {
 
 	joinRate = getJoinFlux();
-	total += joinRate;
-
-	return total;
+	return getMoveFlux() + joinRate;
 }
 
 BaseCount SComplexList::getExposedBases() {
@@ -354,16 +347,50 @@ double *SComplexList::getEnergy(int volume_flag) {
 		index = index + 1;
 	}
 	return energies;
+
 }
 
-void SComplexList::printComplexList() {
-	SComplexListEntry *temp = first;
+void SComplexList::printComplexList(std::ostream& str) {
 
+	SComplexListEntry *temp = first;
 	while (temp != NULL) {
-		cout << temp->toString(eModel);
+		if (temp != first)
+			str << endl;
+		temp->toString(str, eModel);
 		temp = temp->next;
 	}
 
+}
+
+void SComplexList::printStructures(std::ostream& str) {
+
+	str << "> ";
+	SComplexListEntry *temp = first;
+	while (temp != NULL) {
+		if (temp != first)
+			str << " | ";
+		str << temp->thisComplex->getSequence();
+		temp = temp->next;
+	}
+	str << endl << "  ";
+	temp = first;
+	while (temp != NULL) {
+		if (temp != first)
+			str << " | ";
+		str << temp->thisComplex->getStructure();
+		temp = temp->next;
+	}
+	str << endl;
+
+}
+
+void SComplexList::printAllMoves(std::vector<string>& moveInfo) {
+	SComplexListEntry *temp = first;
+
+	while (temp != NULL) {
+		temp->thisComplex->printAllMoves(moveInfo, eModel);
+		temp = temp->next;
+	}
 }
 
 SComplexListEntry *SComplexList::getFirst(void) {
@@ -374,61 +401,61 @@ int SComplexList::getCount(void) {
 	return numOfComplexes;
 }
 
-double SComplexList::doBasicChoice(SimTimer& myTimer) {
+double SComplexList::doBasicChoice(
+	SimTimer& myTimer, int* complexId0, int* complexId1, int* loopIdx,
+	stringstream* info0, stringstream* info1) {
 
-	SComplexListEntry *temp, *temp2 = first;
-	StrandComplex* newComplex = NULL;
+	SComplexListEntry *iterEntry = first, *pickedEntry = first;
+	StrandComplex *pickedComplex = NULL, *newComplex = NULL;
+	Loop *temploop;
 	Move *tempmove;
 	double arrType;
 
-	if (eModel->simOptions->debug) {
-		cout << "Doing a basic choice, timer =  " << myTimer << endl;
-		cout << "joinrate = " << joinRate << endl;
-	}
+	if (eModel->simOptions->debug)
+		cout << "Doing a basic choice:" << endl
+			 << "  timer = " << myTimer
+		     << "  joinrate = " << joinRate << endl;
 
-	if (myTimer.wouldBeHit(joinRate)) {
+	// bimolecular transition
+	// ----------------------
 
-		return doJoinChoice(myTimer);
-
-	} else {
-
+	if (myTimer.wouldBeHit(joinRate))
+		return doJoinChoice(myTimer, complexId0, complexId1, info0, info1);
+	else
 		myTimer.checkHit(joinRate);
 
-	}
+	// unimolecular transition
+	// -----------------------
 
-	temp = first;
-	StrandComplex *pickedComplex = NULL;
-
-	while (temp != NULL) {
-		if (myTimer.wouldBeHit(temp->rate) && pickedComplex == NULL) {
-			pickedComplex = temp->thisComplex;
-			temp2 = temp;
+	// sample complex
+	while (iterEntry != NULL) {
+		if (myTimer.wouldBeHit(iterEntry->rate) && pickedComplex == NULL) {
+			pickedEntry = iterEntry;
+			pickedComplex = pickedEntry->thisComplex;
+			if (complexId0 != NULL)
+				*complexId0 = pickedEntry->id;
 		}
-		if (pickedComplex == NULL) {
-
-			myTimer.checkHit(temp->rate);
-
-		}
-		temp = temp->next;
+		if (pickedComplex == NULL)
+			myTimer.checkHit(iterEntry->rate);
+		iterEntry = iterEntry->next;
 	}
 	// POST: pickedComplex points to the complex that contains the executable move
 	// For cotranscriptional, this is always the initial complex.
-
 	assert(pickedComplex != NULL);
-
-	tempmove = pickedComplex->getChoice(myTimer);
+	
+	// sample loop & move
+	tempmove = pickedComplex->getChoice(myTimer, loopIdx, &temploop);
 	arrType = tempmove->getArrType();
-
+	if (info0 != NULL)
+		temploop->toString(*info0);
+	
+	// perform move
 	newComplex = pickedComplex->doChoice(tempmove, myTimer, eModel);
-
 	if (newComplex != NULL) {
-
-		temp = addComplex(newComplex);
-		temp->fillData(eModel);
-
+		iterEntry = addComplex(newComplex);
+		iterEntry->fillData(eModel);
 	}
-
-	temp2->fillData(eModel);
+	pickedEntry->fillData(eModel);
 
 	// FD Oct 20, 2017.
 	// If co-transcriptional mode is activated, and the time indicates a new nucleotide has been added,
@@ -448,69 +475,64 @@ double SComplexList::doBasicChoice(SimTimer& myTimer) {
 
 }
 
-double SComplexList::doJoinChoice(SimTimer& timer) {
-
-	// this function will return the arrType move;
+// this function will return the arrType move
+double SComplexList::doJoinChoice(
+	SimTimer& timer, int* complexId0, int* complexId1,
+	stringstream* info0, stringstream* info1) {
 
 	assert(numOfComplexes > 1);
-
+	
 	JoinCriteria crit;
 
 	// before we do anything, print crit (this is for debugging!)
 	if (eModel->simOptions->debug) {
 		cout << "For the current state: \n";
-		cout << toString();
+		toString(cout);
 	}
 
-	if (!eModel->useArrhenius()) {
-
-		crit = cycleForJoinChoice(timer);
-
-	} else {
-
-		crit = cycleForJoinChoiceArr(timer);
-
-	}
+	if (!eModel->useArrhenius())
+		crit = cycleForJoinChoice(timer, complexId0, complexId1);
+	else
+		crit = cycleForJoinChoiceArr(timer, complexId0, complexId1);
 
 	if (eModel->simOptions->debug) {
 		cout << "Found a criteria to join: \n";
 		cout << crit.arrType;
 	}
-
 	assert(crit.complexes[0]!=NULL);
 	assert(crit.complexes[1]!=NULL);
 
-	// here we actually perform the complex join, using criteria as input.
+	if (info0 != NULL)
+		crit.printComplexPair(*info0);
+	if (info1 != NULL)
+		crit.printBasePair(*info1);
 
-	SComplexListEntry *temp2 = NULL;
+	// here we actually perform the complex join, using criteria as input.
+	SComplexListEntry *delEntry = NULL;
 	StrandComplex *deleted;
 
 	deleted = StrandComplex::performComplexJoin(crit, eModel);
-	for (SComplexListEntry* temp = first; temp != NULL; temp = temp->next) {
+	for (SComplexListEntry* iterEntry = first; iterEntry != NULL;
+	     iterEntry = iterEntry->next)
+	{
+		if (iterEntry->thisComplex == crit.complexes[0])
+			iterEntry->fillData(eModel);
 
-		if (temp->thisComplex == crit.complexes[0]) {
-			temp->fillData(eModel);
-		}
-
-		if (temp->next != NULL) {
-
-			if (temp->next->thisComplex == deleted) {
-				temp2 = temp->next;
-				temp->next = temp2->next;
-				temp2->next = NULL;
-				delete temp2;
+		if (iterEntry->next != NULL) {
+			if (iterEntry->next->thisComplex == deleted) {
+				delEntry = iterEntry->next;
+				iterEntry->next = delEntry->next;
+				delEntry->next = NULL;
+				delete delEntry;
 			}
-
 		}
-
 	}
 
 	if (first->thisComplex == deleted) {
-		temp2 = first;
+		delEntry = first;
 		first = first->next;
-		temp2->next = NULL;
-		delete temp2;
-
+		delEntry->next = NULL;
+		delete delEntry;
 	}
 	numOfComplexes--;
 
@@ -518,12 +540,17 @@ double SComplexList::doJoinChoice(SimTimer& timer) {
 
 }
 
-JoinCriteria SComplexList::cycleForJoinChoice(SimTimer& timer) {
+JoinCriteria SComplexList::cycleForJoinChoice(
+	SimTimer& timer, int* complexId0, int* complexId1) {
 
-	int choice = timer.checkHitBi(eModel->applyPrefactors(eModel->getJoinRate(), loopMove, loopMove));
+	int choice = timer.checkHitBi(
+		eModel->applyPrefactors(eModel->getJoinRate(), loopMove, loopMove));
 	BaseCount baseSum = getExposedBases();
 
 	for (SComplexListEntry* temp = first; temp != NULL; temp = temp->next) {
+
+		if (complexId0 != NULL)
+			*complexId0 = temp->id;
 
 		BaseCount& external = temp->thisComplex->getExteriorBases();
 		baseSum.decrement(external);
@@ -533,16 +560,14 @@ JoinCriteria SComplexList::cycleForJoinChoice(SimTimer& timer) {
 			int combinations = baseSum.count[base] * external.count[5 - base];
 
 			if (choice < combinations) {
-
 				// break both loops, because the right bases are identified.
-				return findJoinNucleotides(base, choice, external, temp);
+				return findJoinNucleotides(
+					base, choice, external, temp, complexId1);
 
 			} else {
 				choice -= combinations;
 			}
-
 		}
-
 	}
 
 	assert(0);
@@ -550,8 +575,9 @@ JoinCriteria SComplexList::cycleForJoinChoice(SimTimer& timer) {
 
 }
 
-// FD: crit is an export variable, but the bool return signifies if a pair has been selected or not.
-JoinCriteria SComplexList::findJoinNucleotides(BaseType base, int choice, BaseCount& external, SComplexListEntry* temp, HalfContext* lowerHalf) {
+JoinCriteria SComplexList::findJoinNucleotides(
+	BaseType base, int choice, BaseCount& external, SComplexListEntry* temp,
+	int* complexId1, HalfContext* lowerHalf) {
 
 	JoinCriteria crit;
 
@@ -565,6 +591,9 @@ JoinCriteria SComplexList::findJoinNucleotides(BaseType base, int choice, BaseCo
 	temp = temp->next;
 
 	while (temp != NULL) {
+
+		if (complexId1 != NULL)
+			*complexId1 = temp->id;
 
 		BaseCount externOther = temp->thisComplex->getExteriorBases(lowerHalf);
 
@@ -586,7 +615,8 @@ JoinCriteria SComplexList::findJoinNucleotides(BaseType base, int choice, BaseCo
 	return crit;
 }
 
-JoinCriteria SComplexList::cycleForJoinChoiceArr(SimTimer& timer) {
+JoinCriteria SComplexList::cycleForJoinChoiceArr(
+	SimTimer& timer, int* complexId0, int* complexId1) {
 
 	// Like the non-arrhenius version, but this time, we have to cycle over all the
 	// possible local structures.
@@ -594,6 +624,9 @@ JoinCriteria SComplexList::cycleForJoinChoiceArr(SimTimer& timer) {
 	OpenInfo baseSum = getOpenInfo();
 
 	for (SComplexListEntry* temp = first; temp != NULL; temp = temp->next) {
+
+		if (complexId0 != NULL)
+			*complexId0 = temp->id;
 
 		OpenInfo& external = temp->thisComplex->ordering->getOpenInfo();
 
@@ -629,7 +662,8 @@ JoinCriteria SComplexList::cycleForJoinChoiceArr(SimTimer& timer) {
 
 									// return the joining criteria;
 
-									JoinCriteria crit = findJoinNucleotides(base, choice_int, ton.second, temp, &con.first);
+									JoinCriteria crit = findJoinNucleotides(
+										base, choice_int, ton.second, temp, complexId1, &con.first);
 
 									crit.half[0] = ton.first;
 									crit.half[1] = con.first;
@@ -678,17 +712,14 @@ bool SComplexList::checkStopComplexList(class complexItem *stoplist) {
 
 }
 
-string SComplexList::toString() {
-
-	string output = "";
+void SComplexList::toString(std::ostream& str) {
 
 	for (SComplexListEntry *temp = first; temp != NULL; temp = temp->next) {
 
-		output += temp->toString(eModel) + "\n";
+		temp->toString(str, eModel);
+		str << endl;
 
 	}
-
-	return output;
 
 }
 

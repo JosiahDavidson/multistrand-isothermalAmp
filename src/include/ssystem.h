@@ -43,7 +43,7 @@ public:
 	~SimulationSystem(void);
 
 	void StartSimulation(void);
-	void initialInfo(void);	// printing function
+	void stateInfo(PyObject *start_state); // printing function
 	void localTransitions(void); // builds all transitions in local statespace
 
 	EnergyModel *GetEnergyModel(void);
@@ -77,7 +77,10 @@ private:
 	void exportInterval(double simTime, long period, double arrType = -88.0);
 	void exportTrajState(double simTime, double* lastExportTime, int period);
 
-	void printAllMoves(void);
+	void initializeTransitions(PyObject*, bool);
+	void iterateTransitions(
+		PyObject *start_state, bool uni, bool send, bool print,
+		std::vector<string>* uniMoveInfo = NULL);
 
 	EnergyModel* energyModel = NULL;
 	StrandComplex *startState = NULL;

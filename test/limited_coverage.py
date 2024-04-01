@@ -337,7 +337,7 @@ def main2():
     o1 = create_setup_interal(toehold_t, toehold_dd, domain_R, 25)
     
     s = SimSystem(o1)
-    s.initialInfo()
+    s.stateInfo()
     print("Testing loop internals")
 
 

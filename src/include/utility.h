@@ -23,13 +23,13 @@ namespace utility {
 
 //helper functions
 
-string sequenceToString(BaseType*, int);
+void sequenceToString(std::ostream&, BaseType*, int);
 
 char* copyToCharArray(string&);
 
 string copyToString(char*);
 
-string moveType(int);
+void moveType(std::ostream&, int);
 
 }
 

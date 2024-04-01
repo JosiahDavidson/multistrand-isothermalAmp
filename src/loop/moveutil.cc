@@ -79,16 +79,10 @@ string moveutil::primeToDesc(int input) {
 
 std::ostream& operator<<(std::ostream &ss, OpenInfo& m) {
 
-	for (std::pair<HalfContext, BaseCount> value : m.tally) {
+	for (std::pair<HalfContext, BaseCount> value : m.tally)
+		ss << value.first << " " << value.second << " -- ";
 
-		ss << value.first << " ";
-		ss << value.second << "   --   ";
-
-	}
-
-	ss << "Intern / Total = " << m.numExposedInternal << " / ";
-	ss << m.numExposed << "\n";
-
+	ss << "Intern/Total=" << m.numExposedInternal << "/" << m.numExposed << "\n";
 	return ss;
 
 }
@@ -222,17 +216,32 @@ JoinCriteria::JoinCriteria() {
 
 }
 
-std::ostream & operator<<(std::ostream & ss, JoinCriteria & m) {
+void JoinCriteria::printBasePair(std::ostream& ss) {
 
-	ss << " criteria \n";
+	ss << "(" << index[0] << "," << index[1] << ")"
+	   << " | " << baseTypeString[(int) types[0]] << "/"
+                << baseTypeString[(int) types[1]];
+	if (arrType >= 0)
+		ss << " | arrType=" << arrType
+		   << " | half=" << half[0] << "," << half[1];
+	
+}
 
-	ss << "arrType = " << m.arrType;
-	ss << "Types = " << (int) m.types[0] << " " << (int) m.types[1] << "\n";
-	ss << "Index = " << m.index[0] << " " << m.index[1] << " \n";
-	ss << "Half = " << m.half[0] << " " << m.half[1] << "\n";
-	ss << "Complex0 = " << m.complexes[0]->ordering->toString() << "\n";
-	ss << "Complex1 = " << m.complexes[1]->ordering->toString() << "\n";
+void JoinCriteria::printComplexPair(std::ostream& ss) {
 
+	for (int i = 0; i < 2; i++) {
+		if (i > 0)
+			ss << std::endl;
+		complexes[i]->ordering->toString(ss);
+	}
+
+}
+
+std::ostream & operator<<(std::ostream& ss, JoinCriteria & m) {
+	
+	m.printBasePair(ss);
+	ss << std::endl;
+	m.printComplexPair(ss);
 	return ss;
 
 }
@@ -398,8 +407,8 @@ HalfContext::HalfContext(QuartContext in1, QuartContext in2) {
 
 std::ostream & operator<<(std::ostream & os, HalfContext & m) {
 
-	os << "(" << quartContextString[m.left] << ", ";
-	os << quartContextString[m.right] << ") ";
+	os << "(" << quartContextString[m.left] << ",";
+	os << quartContextString[m.right] << ")";
 
 	return os;
 

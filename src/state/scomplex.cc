@@ -205,13 +205,15 @@ StrandComplex *StrandComplex::doChoice(Move *move, SimTimer &timer, EnergyModel 
 	{
 
 		cout << "Triggering move: " << endl;
-		cout << move->toString(false);
+		move->toString(cout, false);
 		cout << "Affected:" << endl;
-		cout << temp2->toString() << endl;
+		temp2->toString(cout);
+		cout << endl;
 
 		if (temp3 != NULL)
 		{
-			cout << temp3->toString() << endl;
+			temp3->toString(cout);
+			cout << endl;
 		}
 	}
 
@@ -737,10 +739,9 @@ int StrandComplex::generateLoops(bool debug)
 	return 0;
 }
 
-void StrandComplex::printAllMoves(bool useArrhenius)
+void StrandComplex::printAllMoves(std::vector<string>& moveInfo, EnergyModel* eModel)
 {
-
-	beginLoop->printAllMoves(NULL, useArrhenius);
+	beginLoop->printAllMoves(moveInfo, NULL, eModel);
 }
 
 string StrandComplex::toString()
@@ -846,9 +847,9 @@ void StrandComplex::generateMoves(EnergyModel *energyModel) {
 	beginLoop->firstGen(NULL, energyModel);
 }
 
-Move *StrandComplex::getChoice(SimTimer &timer)
+Move *StrandComplex::getChoice(SimTimer &timer, int *loopIdx, Loop **ppLoop)
 {
-	return beginLoop->getChoice(timer, NULL);
+	return beginLoop->getChoice(timer, NULL, loopIdx, ppLoop);
 }
 
 int StrandComplex::getStrandCount(void)

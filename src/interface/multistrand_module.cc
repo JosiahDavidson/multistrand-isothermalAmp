@@ -99,6 +99,30 @@ SimulationSystem *SimSystemObject_construct_sys(PyObject *options) {
     }
 }
 
+int checkStateType(PyObject* start_state) {
+    int ret = 0;
+    if (start_state == Py_None) {
+        start_state == NULL;
+        Py_DECREF(Py_None);
+    } else if (start_state != NULL)
+        if (strcmp(Py_TYPE(start_state)->tp_name, "list") == 0) {
+            int n = PyList_GET_SIZE(start_state);
+            for (int i = 0; i < n; i++)
+                if (strcmp(Py_TYPE(PyList_GET_ITEM(start_state, i))->tp_name,
+                           "Complex") != 0)
+                    ret = -1;
+        } else
+            ret = -1;
+
+    if (ret == 0)
+        return ret;
+    else {
+        PyErr_SetString(PyExc_TypeError,
+                        "Expected an argument of type `List[Complex]`.");
+        return ret;
+    }
+}
+
 
 /* Python class methods ===================================================== */
 
@@ -118,11 +142,16 @@ PyObject *SimSystemObject_start(SimSystemObject *self, PyObject *args) {
     Py_RETURN_NONE;
 }
 
-PyObject *SimSystemObject_initialInfo(SimSystemObject *self, PyObject *args) {
-    if (!PyArg_ParseTuple(args, ":initialInfo"))
+PyObject *SimSystemObject_stateInfo(SimSystemObject *self, PyObject *args) {
+    PyObject *start_state_object = NULL;
+    if (!PyArg_ParseTuple(
+            args, "|O:stateInfo(state=None)",
+            &start_state_object))
+        return NULL;
+    if (checkStateType(start_state_object) != 0)
         return NULL;
     assert (self->sys != NULL);
-    self->sys->initialInfo();
+    self->sys->stateInfo(start_state_object);
     Py_RETURN_NONE;
 }
 
@@ -147,6 +176,8 @@ PyObject *System_calculate_energy(PyObject *self, PyObject *args) {
             &start_state_object, &options, &energy_type))
         return NULL;
     if (PSimOptions::checkPythonType(options) != 0)
+        return NULL;
+    if (checkStateType(start_state_object) != 0)
         return NULL;
     if (!(0 <= energy_type && energy_type <= 3)) {
         PyErr_SetString(PyExc_TypeError, "Invalid 'energy_type' argument!");

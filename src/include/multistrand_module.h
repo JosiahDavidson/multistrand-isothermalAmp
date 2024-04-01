@@ -38,7 +38,7 @@ SimulationSystem *SimSystemObject_construct_sys(PyObject*);
 
 // class methods
 PyObject *SimSystemObject_start(SimSystemObject*, PyObject*);
-PyObject *SimSystemObject_initialInfo(SimSystemObject*, PyObject*);
+PyObject *SimSystemObject_stateInfo(SimSystemObject*, PyObject*);
 PyObject *SimSystemObject_localTransitions(SimSystemObject*, PyObject*);
 
 PyDoc_STRVAR(
@@ -64,9 +64,16 @@ PyDoc_STRVAR(
   "Start the simulation and block until it has been completed. Information is only\n"
   "returned from the simulation via the `Options` object it was initialized with.\n");
 PyDoc_STRVAR(
-  docstring_SimSystem_initialInfo,
-  "initialInfo()\n--\n\n"
-  "Query information about the initial state of the simulation.\n");
+  docstring_SimSystem_stateInfo,
+  "stateInfo(state=None)\n--\n\n"
+  "Print internal information about a state and its accessible moves. This method is\n"
+  "intended for debugging purposes only, and should not be used during simulation.\n\n"
+  "Parameters:\n"
+  "- state:        (optional) list of `Complex` objects\n\n"
+  "NOTE:\n"
+  "If the `state` argument is not provided, the initial state defined in `Options`\n"
+  "will be used. Otherwise, the `SimulationSystem` (C++) will be re-initialized\n"
+  "with `state`, reusing the existing `Options` instance.\n");
 PyDoc_STRVAR(
   docstring_SimSystem_localTransitions,
   "localTransitions()\n--\n\n"
@@ -80,8 +87,8 @@ static PyMethodDef SimSystemObject_methods[] = {
     METH_COEXIST | METH_VARARGS, docstring_SimSystem_init },
   { "start", (PyCFunction) SimSystemObject_start,
     METH_VARARGS, docstring_SimSystem_start },
-  { "initialInfo", (PyCFunction) SimSystemObject_initialInfo,
-    METH_VARARGS, docstring_SimSystem_initialInfo },
+  { "stateInfo", (PyCFunction) SimSystemObject_stateInfo,
+    METH_VARARGS, docstring_SimSystem_stateInfo },
   { "localTransitions", (PyCFunction) SimSystemObject_localTransitions,
     METH_VARARGS, docstring_SimSystem_localTransitions },
   { NULL, NULL, 0, NULL } /* Sentinel */
@@ -117,11 +124,11 @@ PyObject *System_calculate_rate(PyObject*, PyObject*, PyObject*);
 
 PyDoc_STRVAR(
   docstring_calculate_energy,
-  "calculate_energy(states, options, energy_type='EnergyType.loop')\n--\n\n"
-  "Compute the free energy of the input states, initializing a `SimulationSystem`\n"
+  "calculate_energy(state, options, energy_type='EnergyType.loop')\n--\n\n"
+  "Compute the free energy of the input state, initializing a `SimulationSystem`\n"
   "(C++) object as specified by `options`.\n\n"
   "Parameters:\n"
-  "- states:       list of `Complex` objects\n"
+  "- state:        list of `Complex` objects\n"
   "- options:      `Options` object\n"
   "- energy_type:  one of\n"
   "    - EnergyType.loop:     [default] no volume or association terms included\n"

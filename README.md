@@ -25,7 +25,7 @@ general inquiries to help@multistrand.org.
 ## Licence
 
     Multistrand nucleic acid kinetic simulator
-    Copyright (c) 2008-2023 California Institute of Technology. All rights reserved.
+    Copyright (c) 2008-2024 California Institute of Technology. All rights reserved.
     The Multistrand Team (help@multistrand.org)
 
 Using this software is permitted for academic non-commercial purposes only. All
@@ -189,7 +189,7 @@ complex, `R` is the gas constant and `T` is the temperature).
 ```sh
 $> python tutorials/compute/rate.py hybridization AGCTGA -bootstrap
 --------------------------------------------------------------------------------
-2023-08-05 17:23:29   Starting Multistrand 2.2  (c) 2008-2023 Caltech
+2024-04-13 19:17:53   Starting Multistrand 2.2  (c) 2008-2024 Caltech
 
 Running first step mode simulations for AGCTGA (with Boltzmann sampling)...
 
@@ -223,7 +223,13 @@ Using Results Type: FirstStepRate
 Computing 1000 trials, using 10 threads ..
  .. and rolling 100 trajectories per thread until 500 successful trials occur.
 
-Found 558 successful trials, terminating.
+nForward = 443
+nReverse = 357
+
+nForward = 546
+nReverse = 454
+
+Found 546 successful trials, terminating.
 Done.  0.25239 seconds -- now processing results
 
 The hybridization rate of AGCTGA and the reverse complement is 3.00e+06 /M /s

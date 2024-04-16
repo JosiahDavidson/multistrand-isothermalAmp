@@ -12,11 +12,8 @@ The Multistrand Team (help@multistrand.org)
 
 #include <string>
 
-#include "loop.h"
 #include "strandordering.h"
-#include "optionlists.h"
-#include "energymodel.h"
-#include "simtimer.h"
+
 
 class StrandComplex {
 public:

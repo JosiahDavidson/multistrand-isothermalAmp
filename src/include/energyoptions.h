@@ -10,14 +10,9 @@ The Multistrand Team (help@multistrand.org)
 #ifndef __ENERGYOPTIONS_H_
 #define __ENERGYOPTIONS_H_
 
-#include <Python.h>
-#include "ssystem.h"
-#include "simoptions.h"
-#include <vector>
-#include <string>
-#include <iostream>
-
+#include "moveutil.h"
 #include "utility.h"
+
 
 class EnergyOptions {
 public:

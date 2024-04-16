@@ -438,7 +438,7 @@ class OptionsFactory:
         """
         Test deterministic output, up to Boltzmann sampling.
         """
-        seeds = np.random.randint(int(1e5), size=10)
+        seeds = np.random.randint(1 << 31, size=10)
         opts = list(map(self.new, seeds))
         for seed, opt in zip(seeds, opts):
             if opt != opts[0]:
@@ -672,7 +672,7 @@ class MergeSim:
             print(t, "  t=", time, "\n")
 
     def printTrajectory(self):
-        instanceSeed = self.seed + (time.time() * 10000) % (math.pow(2, 32) - 1)
+        instanceSeed = (self.seed + time.time() * 10000) % (1 << 31)
         o1 = self.factory.new(instanceSeed)
 
         o1.num_simulations = 1
@@ -757,7 +757,6 @@ class MergeSim:
         self.nReverse = manager.Value('i', 0)
 
         self.results = self.settings.rateFactory()
-        self.endStates = []
 
         def doSim(myFactory, aFactory, list0, list1, instanceSeed, nForwardIn, nReverseIn):
             try:
@@ -788,7 +787,7 @@ class MergeSim:
                 aFactory.doAnalysis(myOptions)
 
         def getSimulation(input):
-            instanceSeed = self.seed + input * 3 * 5 * 19 + (time.time() * 10000) % (math.pow(2, 32) - 1)
+            instanceSeed = (self.seed + input * 3 * 5 * 19 + time.time() * 10000) % (1 << 31)
             return self.ctx.Process(target=doSim, args=(
                 self.factory, self.aFactory, self.managed_result,
                 self.managed_endStates, instanceSeed, self.nForward, self.nReverse))

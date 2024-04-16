@@ -8,6 +8,8 @@ Options and literals for specifying and representing Multistrand simulations.
 
 import copy
 from enum import IntEnum
+from collections import namedtuple
+from itertools import chain
 from typing import List, Optional
 import os.path
 import importlib.resources
@@ -98,6 +100,21 @@ class TransitionType(IntEnum):
     """bimolecular break (energies are relevant)"""
 
 
+TrajLogComplex = namedtuple(
+    "TrajLogComplex", [
+        "seed", "id", "strand_names",
+        "sequence", "structure", "energy", "enthalpy"])
+TrajLogTransition = namedtuple(
+    "TrajLogTransition", ["time", "stop_conditions"])
+TrajLogResult = namedtuple(
+    "TrajLogResult", [
+        "seed", "stop_flag", "time",
+        "collision_rate", "stop_tag"])
+TrajLogResultNoCollision = namedtuple(
+    "TrajLogResultNoCollision",
+    TrajLogResult._fields[:-2] + (TrajLogResult._fields[-1],))
+
+
 class Options:
     """
     The main wrapper for controlling a Multistrand simulation. Has an interface
@@ -125,29 +142,27 @@ class Options:
 
     def __init__(self, *args, **kargs):
         """
-        Initialization of an Options object:
-
         Keyword Arguments:
-        dangles -- Specifies the dangle terms used in the energy model.
-                   Can be the strings 'None', 'Some', or 'All'.
-        start_state  [type=list]     -- A list of Complexes to use as the
-                                        initial state of the system.
-        simulation_time [type=float] -- Cap on the maximum simulation time.
-        num_simulations [type=int]   -- Number of trajectories to run
-        biscale         [type=float] -- Bimolecular scaling constant
-        uniscale        [type=float] -- Unimolecular scaling constant
-        parameter_type               -- Which set of energy parameters is
-                                        used. Available options: 'Nupack',
-                                        'Vienna'
-        substrate_type               -- Whether we want 'DNA' or 'RNA' energy
-                                        parameters.
-        rate_method                  -- Whether we want 'Kawasaki' or 'Metropolis'
-                                        or 'Arrhenius' rate method for unimolecular steps.
+        ------------------
+        start_state: List[Complex]    -- Initial state of the system.
+        substrate_type: str (DNA|RNA) -- Material used in the energy model.
+        dangles: str (None|Some|All)  -- Dangle terms used in the energy model.
+        uniscale: float               -- Scaling of the unimolecular rate coefficient.
+        biscale: float                -- Scaling of the bimolecular rate coefficient.
+        simulation_time: float        -- Cap on the maximum simulation time.
+        num_simulations: int          -- Number of trajectories to run.
+        rate_method: str (Kawasaki|Metropolis|Arrhenius)
+
+        Optional Arguments:
+        -------------------
+        initial_seed: int            -- PRNG seed at the start of the first trajectory.
+        state_seed: (int,int,int)    -- full PRNG buffer to restart a trajectory mid-way.
+        simulation_start_time: float -- Initial time point (in combination with `state_seed`).
                                         
-        If rate_method == Literals.Arrhenius, please set:
-        lnAEnd, lnALoop, lnAStack, lnAStackStack, lnALoopEnd, lnAStackEnd,
-        lnAStackLoop, EEnd, ELoop, EStack, EStackStack, ELoopEnd, EStackEnd,
-        EStackLoop and bimolecular_rate(double value).
+        If rate_method == 'Arrhenius', please also set:
+            lnAEnd, lnALoop, lnAStack, lnAStackStack, lnALoopEnd, lnAStackEnd,
+            lnAStackLoop, EEnd, ELoop, EStack, EStackStack, ELoopEnd, EStackEnd, EStackLoop,
+            bimolecular_rate.
         """
 
         ##################################################
@@ -295,20 +310,12 @@ class Options:
         perform the main loop.
         """
 
+        self._simulation_start_time: float = 0.0
         self._simulation_time: float = 600.0
-        """ Maximum time (in seconds) allowed for each trajectory.
-        
-        Type         Default
-        double       600.0
-        """
-
         self._num_simulations: int = 1
-        """ Total number of trajectories to run. """
 
         self._initial_seed: Optional[int] = None
-        """ Initial random number seed to use.
-        If None when simulation starts, a random seed will be chosen
-        """
+        self._state_seed: Optional[Tuple[int, int, int]] = None
 
         self.name_dict = {}
         """ Dictionary from strand name to a list of unique strand objects
@@ -424,9 +431,8 @@ class Options:
         Erase all dynamic simulation state, *excluding* the `SimSystem` that is
         stored in order to reuse its `EnergyModel`.
 
-        Note that `Options.initial_seed` is considered a static configuration to
-        be kept, whereas `Options.interface.current_seed` is considered dynamic
-        simulation state to be cleared.
+        Note that `Options.initial_seed` and `Options.state_seed` are considered
+        static configuration to be kept.
         """
         self.full_trajectory = []
         self.full_trajectory_times = []
@@ -453,6 +459,45 @@ class Options:
         """
         self._reusable_sim_system = None
 
+    def restart_from_checkpoint(self, idx: int) -> "Options":
+        """
+        Create a new `Options` instance to restart a trajectory mid-way, using
+        the checkpoint `self.full_trajectory[idx]`.
+        """
+        # retrieve necessary data from checkpoint
+        cp_log = self.full_trajectory[idx]
+        cp_state = self.checkpoint_state(cp_log)
+        cp_time = self.full_trajectory_times[idx]
+        cp_state_seed = cp_log[0].seed
+        assert all(cmplx.seed == cp_state_seed for cmplx in cp_log)
+
+        # construct a new `Options` instance with modified initial conditions
+        self.free_sim_system()
+        opt = copy.deepcopy(self)
+        opt.clear()
+        assert opt == self
+        opt._start_state = []
+        opt.start_state = cp_state
+        opt.simulation_start_time = cp_time
+        opt.state_seed = cp_state_seed
+        return opt
+
+    def checkpoint_state(self, checkpoint: List[TrajLogComplex]):
+        """
+        Reconstruct a new `Options.start_state` representation from a
+        checkpoint in the previous trajectory log. Used by
+        `Options.restart_from_checkpoint()`.
+        """
+        assert all(isinstance(cmplx, TrajLogComplex) for cmplx in checkpoint)
+        strands = {f"{s.id}:{s.name}": s
+                   for s in chain(*(c.strand_list for c in self.start_state))}
+        return [
+            Complex(strands=[strands[n]
+                             for n in cmplx.strand_names.split(',')],
+                    structure=cmplx.structure)
+            # the input complex list is reversed on the way to `SComplexList`
+            for cmplx in checkpoint[::-1]]
+
     def __eq__(self, other: "Options") -> bool:
         """
         Compare configurations syntactically, ignoring random seeds and
@@ -467,7 +512,8 @@ class Options:
             self.join_concentration, self.temperature,
             self.rate_scaling,
             self.rate_method, self.unimolecular_scaling, self.bimolecular_scaling,
-            self.simulation_mode, self.simulation_time, self.num_simulations,
+            self.simulation_mode, self.num_simulations,
+            self.simulation_start_time, self.simulation_time,
             self.dSA, self.dHA, self.sodium, self.magnesium,
             self.start_state, self.stop_conditions,
             self.output_time, self.output_interval, self.output_state,
@@ -480,7 +526,8 @@ class Options:
             other.join_concentration, other.temperature,
             other.rate_scaling,
             other.rate_method, other.unimolecular_scaling, other.bimolecular_scaling,
-            other.simulation_mode, other.simulation_time, other.num_simulations,
+            other.simulation_mode, other.num_simulations,
+            other.simulation_start_time, other.simulation_time,
             other.dSA, other.dHA, other.sodium, other.magnesium,
             other.start_state, other.stop_conditions,
             other.output_time, other.output_interval, other.output_state,
@@ -641,7 +688,25 @@ class Options:
                 "the NUPACK sampling method.")
 
     @property
+    def simulation_start_time(self):
+        """
+        Initial time point for each trajectory (default: 0.0). Used by
+        `Options.restart_from_checkpoint()`.
+        """
+        return self._simulation_start_time
+
+    @simulation_start_time.setter
+    def simulation_start_time(self, value):
+        self._simulation_start_time = float(value)
+
+    @property
     def simulation_time(self):
+        """
+        Maximum time (in seconds) allowed for each trajectory.
+
+        Type         Default
+        double       600.0
+        """
         return self._simulation_time
 
     @simulation_time.setter
@@ -650,6 +715,7 @@ class Options:
 
     @property
     def num_simulations(self):
+        """ Total number of trajectories to run. """
         return self._num_simulations
 
     @num_simulations.setter
@@ -854,15 +920,44 @@ class Options:
 
     @property
     def initial_seed(self):
+        """
+        Configuration of the initial PRNG seed (32 bits) to use at the start
+        of the current trajectory. If `None` (default), a random seed will be
+        chosen. See also: `Options.state_seed`.
+
+        C type: long
+        """
         return self._initial_seed if self.initial_seed_flag else None
 
     @initial_seed.setter
     def initial_seed(self, seed):
         self._initial_seed = int(seed)
+        assert 0 <= abs(self._initial_seed) <= 1 << 31
 
     @property
     def initial_seed_flag(self):
         return self._initial_seed != None
+
+    @property
+    def state_seed(self):
+        """
+        Full PRNG buffer (48 bits) to set at the start of the current
+        trajectory. Used by `Options.restart_from_checkpoint()`.
+        If `None` (default), then fall back to `Options.initial_seed`.
+
+        C type: unsigend short[3]
+        """
+        return self._state_seed if self.state_seed_flag else None
+
+    @state_seed.setter
+    def state_seed(self, seed):
+        self._state_seed = tuple(map(int, seed))
+        assert len(self._state_seed) == 3
+        assert all(0 <= s < 1 << 16 for s in self._state_seed)
+
+    @property
+    def state_seed_flag(self):
+        return self._state_seed != None
 
     @property
     def stop_conditions(self):
@@ -1029,13 +1124,8 @@ class Options:
 
     @add_result_status_line.setter
     def add_result_status_line(self, val):
-        """
-        Accepts a 4-tuple with format:
-            (random number seed, stop result flag, completion time,
-             stop result tag)
-        """
-        assert isinstance(val, tuple) and len(val) == 4
-        self.interface.add_result(val, res_type='status_line')
+        log = TrajLogResultNoCollision._make(val)
+        self.interface.add_result(log, res_type='status_line')
         if len(self._current_end_state) > 0:
             self.interface.end_states.append(self._current_end_state)
             self._current_end_state = []
@@ -1046,13 +1136,8 @@ class Options:
 
     @add_result_status_line_firststep.setter
     def add_result_status_line_firststep(self, val):
-        """
-        Accepts a 5-tuple with format:
-            (random number seed, stop result flag, completion time,
-             collision rate, stop result tag)
-        """
-        assert isinstance(val, tuple) and len(val) == 5
-        self.interface.add_result(val, res_type='firststep')
+        log = TrajLogResult._make(val)
+        self.interface.add_result(log, res_type='firststep')
         if len(self._current_end_state) > 0:
             self.interface.end_states.append(self._current_end_state)
             self._current_end_state = []
@@ -1063,15 +1148,12 @@ class Options:
 
     @add_complex_state_line.setter
     def add_complex_state_line(self, val):
-        """
-        Accepts a 7-tuple with format:
-            (random number seed, unique complex id, strand names, sequence,
-             structure, energy, enthalpy)
-        """
-        assert isinstance(val, tuple) and len(val) == 7
-        self._current_end_state.append(val)
+        log = TrajLogComplex._make(val)
+        self._current_end_state.append(log)
         if self.verbosity > 1:
-            print("{0[0]}: [{0[1]}] '{0[2]}': {0[5]} \n{0[3]}\n{0[4]}\n".format(val))
+            print(f"{log.seed}: [{log.id}] "
+                  f"'{log.strand_names}': {log.energy}"
+                  f"\n{log.sequence}\n{log.structure}\n")
 
     @property
     def add_transition_info(self):
@@ -1079,13 +1161,8 @@ class Options:
 
     @add_transition_info.setter
     def add_transition_info(self, val):
-        """
-        Accepts a 2-tuple with format:
-            (current time, list of boolean values for stop conditions)
-        """
-        assert isinstance(val, tuple) and len(val) == 2
-        # print( "Time: {0[0]} Membership: {0[1]}".format( val ))
-        self._current_transition_list.append(val)
+        log = TrajLogTransition._make(val)
+        self._current_transition_list.append(log)
 
     @property
     def add_trajectory_complex(self):
@@ -1093,13 +1170,8 @@ class Options:
 
     @add_trajectory_complex.setter
     def add_trajectory_complex(self, val):
-        """
-        Accepts a 6-tuple with format:
-            (random number seed, unique complex id, strand names, sequence,
-             structure, energy)
-        Adds this data to the interface's results object.
-        """
-        self.trajectory_complexes.append(val)
+        log = TrajLogComplex._make(val)
+        self.trajectory_complexes.append(log)
 
     @property
     def add_trajectory_current_time(self):
@@ -1122,20 +1194,17 @@ class Options:
         self.full_trajectory_arrType.append(val)
 
     @property
-    def interface_current_seed(self) -> Optional[int]:
+    def interface_trajectory_seed(self) -> Optional[int]:
         """
-        This is the current random number seed for the trajectory currently
-        being simulated by multistrand.
-
-        This property and its setter exist mainly for use by the multistrand
-        module to provide some feedback on what seed it's working on, in case
-        that trajectory crashes before completion, and other similar cases.
+        This is the C++ runtime value of the initial PRNG seed for the current
+        trajectory, as reported by the simulator after initialisation. For
+        configuring this value, use `Options.initial_seed`.
         """
-        return self.interface.current_seed
+        return self.interface.trajectory_seed
 
-    @interface_current_seed.setter
-    def interface_current_seed(self, val):
-        self.interface.current_seed = int(val)
+    @interface_trajectory_seed.setter
+    def interface_trajectory_seed(self, val):
+        self.interface.trajectory_seed = int(val)
         get_structure = lambda s: (s._last_boltzmann_structure
                                    if s.boltzmann_sample else s._fixed_structure)
         self.interface.start_structures[val] = list(

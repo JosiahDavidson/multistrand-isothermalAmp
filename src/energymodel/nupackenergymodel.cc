@@ -4,18 +4,13 @@ Copyright (c) 2008-2024 California Institute of Technology. All rights reserved.
 The Multistrand Team (help@multistrand.org)
 */
 
-#include <string.h>
-#include <stdlib.h>
 #include <math.h>
 #include <ctype.h>
 #include <assert.h>
-
-#include "simoptions.h"
-#include "options.h"
-#include "basetype.h"
-
-
 #include <time.h>
+
+#include "options.h"
+#include "ssystem.h"
 
 // For json
 #include "rapidjson/document.h"

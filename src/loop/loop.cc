@@ -4,18 +4,11 @@ Copyright (c) 2008-2024 California Institute of Technology. All rights reserved.
 The Multistrand Team (help@multistrand.org)
 */
 
-#include <Python.h>
-
 #include <stdio.h>
 #include <assert.h>
-#include "loop.h"
 #include <typeinfo>
 
-#include "utility.h"
-#include "moveutil.h"
-#include <simoptions.h>
-#include <energyoptions.h>
-#include "basetype.h"
+#include "loop.h"
 
 using std::string;
 

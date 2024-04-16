@@ -9,11 +9,11 @@ The Multistrand Team (help@multistrand.org)
  *  After the simulation is done, the set is exported to a text file.
  */
 
-#include <statespace.h>
-#include <simoptions.h>
-
 #include <iostream>
 #include <fstream>
+
+#include "statespace.h"
+#include "simoptions.h"
 
 const string Builder::the_dir = "p_statespace/";
 
@@ -110,7 +110,7 @@ void Builder::stopResultNormal(double endtime, string tag) {
 
 string Builder::filename(string input) {
 
-	return string(Builder::the_dir + to_string(simOptions->getSeed())) + "/" + input + ".txt";
+	return string(Builder::the_dir + to_string(simOptions->getTrajSeed())) + "/" + input + ".txt";
 
 }
 
@@ -120,7 +120,7 @@ void Builder::writeToFile(void) {
 
 	// create dir
 	// system call to create a directory  TODO fix this to use experimental/filesystem
-	system((string("mkdir -p ") + Builder::the_dir + to_string(simOptions->getSeed())).c_str());
+	system((string("mkdir -p ") + Builder::the_dir + to_string(simOptions->getTrajSeed())).c_str());
 
 	// states
 	unordered_set<ExportData>::iterator itr;

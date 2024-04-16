@@ -4,18 +4,11 @@ Copyright (c) 2008-2024 California Institute of Technology. All rights reserved.
 The Multistrand Team (help@multistrand.org)
 */
 
-// Implementation of the StrandComplex object found in scomplex.h
-#include <string.h>
 #include <assert.h>
-#include <vector>
 #include <iostream>
 #include <sstream>
-#include "scomplex.h"
-#include "simtimer.h"
-#include "simoptions.h"
-#include "basetype.h"
 
-#include <utility.h>
+#include "scomplex.h"
 
 using std::cout;
 

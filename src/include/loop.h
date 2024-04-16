@@ -9,12 +9,7 @@ The Multistrand Team (help@multistrand.org)
 #ifndef __LOOP_H__
 #define __LOOP_H__
 
-#include <string>
-#include <vector>
-#include "energymodel.h"
 #include "move.h"
-#include "moveutil.h"
-#include "basetype.h"
 
 using std::vector;
 

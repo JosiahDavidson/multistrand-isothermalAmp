@@ -12,12 +12,11 @@ The Multistrand Team (help@multistrand.org)
  as a static wrapper type `SimSystem` (Python).
  */
 
-#include "Python.h"
-#include "structmember.h"
+#include <Python.h>
+#include <structmember.h>
 
-#include "options.h"
-#include "simoptions.h"
 #include "ssystem.h"
+
 
 /* Python class ============================================================= */
 

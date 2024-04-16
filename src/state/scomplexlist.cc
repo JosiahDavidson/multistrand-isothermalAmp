@@ -4,20 +4,10 @@ Copyright (c) 2008-2024 California Institute of Technology. All rights reserved.
 The Multistrand Team (help@multistrand.org)
 */
 
-#include <Python.h>
-
-#include "scomplexlist.h"
 #include <assert.h>
 #include <math.h>
 
-#include <vector>
-#include <iostream>
-#include <simoptions.h>
-#include <utility.h>
-#include <moveutil.h>
-#include <assert.h>
-
-#include "basetype.h"
+#include "scomplexlist.h"
 
 typedef std::vector<int> intvec;
 typedef std::vector<int>::iterator intvec_it;

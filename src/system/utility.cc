@@ -4,12 +4,8 @@ Copyright (c) 2008-2024 California Institute of Technology. All rights reserved.
 The Multistrand Team (help@multistrand.org)
 */
 
-#include "utility.h"
-#include <string>
-#include <sstream>
 #include "move.h"
-#include <energymodel.h>
-#include "basetype.h"
+
 
 char* utility::copyToCharArray(string& myString) {
 
@@ -20,7 +16,7 @@ char* utility::copyToCharArray(string& myString) {
 
 }
 
-void utility::sequenceToString(std::ostream& str, BaseType* sequence, int size) {
+void utility::sequenceToString(ostream& str, BaseType* sequence, int size) {
 
 	// the first and final character is the paired base -- adjust the print for this.
 
@@ -50,7 +46,7 @@ string utility::copyToString(char* inputCharArray) {
 
 }
 
-void utility::moveType(std::ostream& str, int type) {
+void utility::moveType(ostream& str, int type) {
 
 	if (type & MOVE_INVALID)
 		str << "invalid";

@@ -4,17 +4,11 @@ Copyright (c) 2008-2024 California Institute of Technology. All rights reserved.
 The Multistrand Team (help@multistrand.org)
 */
 
-// TEST
-#include <stdio.h>
 #include <assert.h>
-#include <string>
 #include <sstream>
 #include <iomanip>
-#include "move.h"
+
 #include "loop.h"
-#include "utility.h"
-#include "energyoptions.h"
-#include "energymodel.h"
 
 using std::string;
 

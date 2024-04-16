@@ -598,7 +598,7 @@ class Builder:
                 print("Multistrand simulation is now done,      time = %.2f" % (time.time() - simTime))
 
             """ load the space """
-            with open(self.the_dir + str(myOptions.interface.current_seed)
+            with open(self.the_dir + str(myOptions.interface.trajectory_seed)
                       + "/protospace.txt", "r") as myFile:
                 for line in myFile:
                     uniqueID, energyvals, seqs = self.parseState(
@@ -614,7 +614,7 @@ class Builder:
                         print("Line = " + line)
 
             """ load the transitions """
-            with open(self.the_dir + str(myOptions.interface.current_seed)
+            with open(self.the_dir + str(myOptions.interface.trajectory_seed)
                       + "/prototransitions.txt", "r") as myFile:
                 index = 0
                 go_on = True
@@ -659,7 +659,7 @@ class Builder:
                         transitions[transitionPair] = transitionList
 
             """ load the initial states """
-            with open(self.the_dir + str(myOptions.interface.current_seed)
+            with open(self.the_dir + str(myOptions.interface.trajectory_seed)
                       + "/protoinitialstates.txt", "r") as myFile:
                 myLines = []
                 for line in myFile:
@@ -686,7 +686,7 @@ class Builder:
                         initStates[uID1] = newEntry
 
             """ load the final states """
-            with open(self.the_dir + str(myOptions.interface.current_seed) + "/protofinalstates.txt", "r") as myFile:
+            with open(self.the_dir + str(myOptions.interface.trajectory_seed) + "/protofinalstates.txt", "r") as myFile:
                 myLines = []
                 for line in myFile:
                     myLines.append(line)
@@ -710,11 +710,11 @@ class Builder:
                         finalStates[uID1] = tag
 
             """ Now delete the files as they can get quite large """
-            os.remove(self.the_dir + str(myOptions.interface.current_seed) + "/protospace.txt")
-            os.remove(self.the_dir + str(myOptions.interface.current_seed) + "/prototransitions.txt")
-            os.remove(self.the_dir + str(myOptions.interface.current_seed) + "/protoinitialstates.txt")
-            os.remove(self.the_dir + str(myOptions.interface.current_seed) + "/protofinalstates.txt")
-            os.rmdir(self.the_dir + str(myOptions.interface.current_seed)) 
+            os.remove(self.the_dir + str(myOptions.interface.trajectory_seed) + "/protospace.txt")
+            os.remove(self.the_dir + str(myOptions.interface.trajectory_seed) + "/prototransitions.txt")
+            os.remove(self.the_dir + str(myOptions.interface.trajectory_seed) + "/protoinitialstates.txt")
+            os.remove(self.the_dir + str(myOptions.interface.trajectory_seed) + "/protofinalstates.txt")
+            os.rmdir(self.the_dir + str(myOptions.interface.trajectory_seed))
 
         runPaths(self.optionsFunction, inputArgs, space, transitions, initStates, finalStates, sequences)
 

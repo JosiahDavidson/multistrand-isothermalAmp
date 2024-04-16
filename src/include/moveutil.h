@@ -8,12 +8,10 @@ The Multistrand Team (help@multistrand.org)
 #ifndef __MOVEUTIL_H__
 #define __MOVEUTIL_H__
 
-#include <string>
-#include <vector>
 #include <map>
-#include <sequtil.h>
 #include <cstdint>
-#include "basetype.h"
+
+#include "sequtil.h"
 
 using std::vector;
 using std::string;

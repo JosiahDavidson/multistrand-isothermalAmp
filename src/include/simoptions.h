@@ -10,14 +10,13 @@ The Multistrand Team (help@multistrand.org)
 #ifndef __SIMOPTIONS_H_
 #define __SIMOPTIONS_H_
 
-#include <Python.h>
-#include "ssystem.h"
-#include <vector>
-#include <string>
-#include <iostream>
+
+// Libc PRNG seed (32 bits) & buffer (48 bits) types
+typedef long seed32_t;
+typedef unsigned short seed48_t[3];
+
 
 #include "energyoptions.h"
-#include "utility.h"
 
 using std::vector;
 using std::string;
@@ -51,7 +50,6 @@ struct complex_input {
 
 
 // FD: SimOptions contains an EnergyOptions object.
-// Both simOptions and energyOptions are meant to contain static values.
 // EnergyModel contains all precomputed maps AND relevant energy functions.
 //
 // hiarchy: energy model > simoptions > energyoptions.
@@ -63,8 +61,10 @@ public:
 	virtual ~SimOptions(void) =0;
 
 	// Non-virtual
-	bool useFixedRandomSeed();
-	long getSeed();
+	bool useTrajSeed();
+	bool useStateSeed();
+	long getTrajSeed();
+	unsigned short (* getStateSeed())[3];
 	EnergyOptions* getEnergyOptions();
 	long getSimulationMode();
 	long getSimulationCount();
@@ -72,6 +72,7 @@ public:
 	double getOTime(void);
 	long getStopOptions(void);
 	long getStopCount(void);
+	double getStartSimTime(void);
 	double getMaxSimTime(void);
 
 	bool getPrintIntialFirstStep(); // true if the initial state has to be exported.
@@ -120,9 +121,14 @@ protected:
 	double o_time = 0;
 	long stop_options = 0;
 	long stop_count = 0;
+	double start_sim_time = 0;
 	double max_sim_time = 0;
-	long seed = 0;
-	bool fixedRandomSeed = false;
+
+	seed32_t traj_seed = 0;
+	seed48_t state_seed = {0, 0, 0};
+	bool fixedTrajSeed = false;
+	bool fixedStateSeed = false;
+
 	stopComplexes* myStopComplexes = NULL;
 
 	bool printInitialFirstStep = false;
@@ -137,15 +143,15 @@ public:
 	static int checkPythonType(PyObject *options);
 	static void clear(PyObject* options);
 	PyObject* getPythonSettings(void);
-	void generateComplexes(PyObject *alternate_start, long current_seed);
+	void generateComplexes(PyObject *alternate_start, seed32_t trajectory_seed);
 	stopComplexes* getStopComplexes(int);
 
 	// Error signaling
-	void stopResultError(long);
-	void stopResultNan(long);
-	void stopResultNormal(long, double, char*);
-	void stopResultTime(long, double);
-	void stopResultFirstStep(long, double, double, const char*);
+	void stopResultError(seed32_t);
+	void stopResultNan(seed32_t);
+	void stopResultNormal(seed32_t, double, char*);
+	void stopResultTime(seed32_t, double);
+	void stopResultFirstStep(seed32_t, double, double, const char*);
 
 protected:
 	PyObject *python_settings;

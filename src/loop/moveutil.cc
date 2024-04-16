@@ -4,16 +4,12 @@ Copyright (c) 2008-2024 California Institute of Technology. All rights reserved.
 The Multistrand Team (help@multistrand.org)
 */
 
-#include <moveutil.h>
-#include <sequtil.h>
 #include <assert.h>
-#include <string>
-#include <vector>
-#include <map>
 #include <iostream>
 #include <sstream>
-#include <scomplex.h>
-#include "basetype.h"
+
+#include "moveutil.h"
+#include "scomplex.h"
 
 using std::vector;
 using std::map;

@@ -7,11 +7,10 @@ The Multistrand Team (help@multistrand.org)
 #ifndef __STRANDORDERING_H__
 #define __STRANDORDERING_H__
 
-#include "loop.h"
-#include "scomplex.h"
-#include "optionlists.h"
 #include <string>
-#include "basetype.h"
+
+#include "loop.h"
+#include "optionlists.h"
 
 // needed for the openloop components of a strand ordering
 

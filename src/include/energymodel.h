@@ -8,15 +8,14 @@ The Multistrand Team (help@multistrand.org)
 #ifndef __ENERGYMODEL_H__
 #define __ENERGYMODEL_H__
 
-#include <Python.h>
 #include <stdio.h>
 #include <string>
 #include <array>
-#include <moveutil.h>
-#include <sequtil.h>
 
+#include <Python.h>
+
+#include "moveutil.h"
 #include "rapidjson/document.h"
-#include "basetype.h"
 
 using std::string;
 using std::array;

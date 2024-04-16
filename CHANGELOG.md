@@ -20,6 +20,9 @@
   are now executed as part of the test suite.
 
 ### Functionality
+- Updated the NUPACK thermodynamic parameters to `dna04`/`rna99`.
+- Updated the default kinetic parameters in `EnergyOptions` (C++) to match the
+  parameter preset `Options.JSDefault()` (Python).
 - Tied the formerly *static* `EnergyModel` (C++) instance as a *dynamic*
   attribute to an `Options` (Python) object. This enables different `SimSystem`
   (Python) objects to reuse the *same* `EnergyModel` instance *sequentially* if
@@ -28,18 +31,17 @@
   *concurrently* otherwise (e.g., for varying environment conditions or kinetic
   parameters). Henceforth, serialising an `Options` object requires a call to
   `Options.free_sim_system()`.
-- Updated the NUPACK thermodynamic parameters to `dna04`/`rna99`.
-- Updated the default kinetic parameters in `EnergyOptions` (C++) to match the
-  parameter preset `Options.JSDefault()` (Python).
+- Enabled deterministic trajectory replays starting mid-way, using
+  `Options.restart_from_checkpoint()`.
+- Consolidated and extended `SimSystem.stateInfo()` (formerly `initialInfo()`)
+  to accept states other than the initial state, to list both uni- and
+  bimolecular moves, to print the adjacent secondary structure for each move,
+  and to use consistent formatting that allows for efficient parsing.
 - Introduced the `utils.thermo` module, which wraps the updated NUPACK utility
   functions (e.g., Boltzmann sampling, disabling coaxial stacking in
   thermodynamic model, adjusting concentration units in ensemble free energy).
 - Defined repeatedly used physical constants (e.g., Boltzmann, Celsius to
   Kelvin) in the `options` and `utils.thermo` modules.
-- Consolidated and extended `SimSystem.stateInfo()` (formerly `initialInfo()`)
-  to accept states other than the initial state, to list both uni- and
-  bimolecular moves, to print the adjacent secondary structure for each move,
-  and to use consistent formatting that allows for efficient parsing.
 - Enabled toggling simulator debug traces from the Python runtime via
   `Options.verbosity`, i.e., without recompiling the C++ extension.
 - Improved the reliability of `MergeSim` (Python) by switching from the standard
@@ -60,6 +62,8 @@
   structure, in order to improve maintainability.
 - Stopped computing transition types when they are not used in the kinetic model
   (`rate_method != 'Arrhenius'`).
+- Added `SimTimer.seed` as an external buffer for the Libc PRNG, in order to
+  track the full random variable state during trajectory sampling.
 - Prevented repeated intermediate prints when using `multiprocess` in
   `MergeSim`.
 - Cleaned up print statements.
@@ -69,8 +73,9 @@
 #### Python
 - Corrected swapped dimensions in the parameter preset
   `Options.DNA23Arrhenius()`.
-- Added explicit type casts in the `Options` interface, in order to guard
-  against type errors that would crash the Python/C API.
+- Added explicit type casts, type checks and overflow checks in the `Options`
+  interface, in order to guard against type errors that could crash the
+  Python/C API.
 
 #### C++
 - Fixed some missing return statements which caused segmentation faults.

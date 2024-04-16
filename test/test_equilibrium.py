@@ -58,11 +58,11 @@ class Test_Equilibrium:
 
         hist = {}
         for end_state in sim.results.endStates:
-            for (_, _, _, _, structure, energy, _) in end_state:
-                if structure in hist:
-                    hist[structure][1] += 1
+            for cmplx in end_state:
+                if cmplx.structure in hist:
+                    hist[cmplx.structure][1] += 1
                 else:
-                    hist[structure] = [energy, 1]
+                    hist[cmplx.structure] = [cmplx.energy, 1]
         return {s: tuple(d) for s, d
                 in sorted(hist.items(), key=lambda s: s[1][1], reverse=True)}
 

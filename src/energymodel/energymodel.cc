@@ -4,16 +4,11 @@ Copyright (c) 2008-2024 California Institute of Technology. All rights reserved.
 The Multistrand Team (help@multistrand.org)
 */
 
-#include "energymodel.h"
-#include "simoptions.h"
-#include "loop.h"
-#include "moveutil.h"
-#include "sequtil.h"
-#include "options.h"
-#include "basetype.h"
-
 #include <iostream>
 #include <fstream>
+
+#include "loop.h"
+#include "options.h"
 
 bool printedRates = false; // to print the constants to file once
 

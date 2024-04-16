@@ -7,6 +7,7 @@ import os, random
 import errno
 from functools import reduce
 
+
 def concentration_string(concentration):
     """
     An easy print function to format concentration in M
@@ -52,6 +53,7 @@ def standardFileName(SCRIPT_DIR, mySeq=None, extraTitle=None, runs=None):
                 raise
     return fileName
 
+
 def generate_sequence(n, allowed_bases=['G', 'C', 'T', 'A'], base_probability=None):
     """ Generate a sequence of N base pairs.
 
@@ -88,7 +90,6 @@ def generate_sequence(n, allowed_bases=['G', 'C', 'T', 'A'], base_probability=No
                    # the reduce since the result was a tuple.
                    (0.0, 'Invalid Probabilities'))[1]
             for _ in range(n)])
-
 
 
 def uniqueStateID(idsList, structsList):
@@ -171,46 +172,80 @@ def pairType(ids, structs):
     return (tuple(idString), tuple(output))
 
 
-def printTrajectory(o, timescale=(1e3, "ms"), feature=None, show_uid: bool = False):
-    seqstring = " "
-    for i in range(len(o.full_trajectory)):
-        time = timescale[0] * o.full_trajectory_times[i]
-        states = o.full_trajectory[i]
+def printTrajectory(opts, timescale=(1e6, "us"), feature=None,
+                    show_seed: bool = False, show_uid: bool = False):
 
-        ids = []
-        newseqs = []
-        structs = []
-        dG = 0.0
+    seqstring = ""
+    I = 0
+    prev_time = opts.full_trajectory_times[0]
+    width_num_cmplx = len(str(max(map(len, opts.full_trajectory))))
+    for i in range(len(opts.full_trajectory)):
+        curr_time = opts.full_trajectory_times[i]
+        time = timescale[0] * curr_time
+        state = opts.full_trajectory[i]
 
-        pairTypes = []
-        for state in states:
-            ids.append(str(state[2]))
+        # start of a new trajectory
+        if i == 0 or curr_time < prev_time:
+            if i > 0:
+                # increment trajectory index
+                I += 1
+                # clean up overhang
+                for prev_cmplx in opts.full_trajectory[i-1]:
+                    if prev_cmplx in state:
+                        state.remove(prev_cmplx)
+
+            # print trajectory header
+            if I > 0:
+                print(); print()
+            width_struct = sum(len(c.sequence) for c in state) + len(state) - 1
+            t_col = f"  t[{timescale[1]}]  "
+            dG_col = "dG[kcal/mol]"
+            width_dG = len(dG_col)
+            indent_hdr = width_num_cmplx + 3 + width_struct
+            hdr = " | " + t_col + " | " + dG_col
+            if show_seed:
+                hdr += " | " + 4 * " " + "state_seed" + 5 * " "
+            width_hdr = indent_hdr + len(hdr)
+            print(width_hdr * "=")
+            print(f"trajectory_seed = {opts.interface.results[I].seed}")
+            print(width_hdr * "-")
+            print(indent_hdr * " " + hdr)
+            print(width_hdr * "-")
+        prev_time = curr_time
+
+        # gather state information
+        ids, newseqs, structs, dG, pairTypes = [], [], [], 0.0, []
+        for cmplx in state:
+            ids.append(str(cmplx.strand_names))
             # extract the strand sequences in each complex
             # (joined by "+" for multistranded complexes)
-            newseqs.append(state[3])
+            newseqs.append(cmplx.sequence)
             # similarly extract the secondary structures for each complex
-            structs.append(state[4])
-            dG += state[5]
-
+            structs.append(cmplx.structure)
+            dG += cmplx.energy
             if show_uid:
-                uniqueID = pairType(state[2], state[4])
+                uniqueID = pairType(cmplx.strand_names, cmplx.structure)
                 pairTypes.append(
                     ''.join(uniqueID[0]) + '_' + ','.join(map(str, uniqueID[1])))
-
         # make a space-separated string of complexes, to represent the whole
         # tube system sequence
         newseqstring = ' '.join(newseqs)
         # give the dot-paren secondary structure for the whole test tube
         tubestruct = ' '.join(structs)
+        if show_seed:
+            seed = ",".join(f"{s:>5d}" for s in state[0].seed)
         if show_uid:
             identities = '+'.join(pairTypes)
 
-        if not newseqstring == seqstring:
-            print(newseqstring)
-            # because strand order can change upon association of dissociation,
+        if newseqstring != seqstring:
+            # because strand order can change upon association or dissociation,
             # print it when it changes
+            print((width_num_cmplx + 3) * ' ' + newseqstring)
             seqstring = newseqstring
 
-        print(f"{tubestruct}   t={time:.6f} {timescale[1]}, dG={dG:> 6.2f} kcal/mol"
-              + (f", {feature(o, i)}" if feature is not None else "")
-              + (f", uID='{identities}'" if show_uid else ""))
+        print(
+            f"[{len(state):>{width_num_cmplx}}] " +
+            f"{tubestruct} | {time:0<#9.4g} |   {dG:>+{width_dG-5}.3f}   " +
+            (f" | ({seed})" if show_seed else "") +
+            (f" | {feature(opts, i)}" if feature is not None else "") +
+            (f" | uID='{identities}'" if show_uid else ""))

@@ -10,15 +10,12 @@ The Multistrand Team (help@multistrand.org)
 #ifndef __SSYSTEM_H__
 #define __SSYSTEM_H__
 
-#include <vector>
 #include <unordered_map>
-#include <iostream>
-#include <string>
 
-#include "energymodel.h"
 #include "scomplexlist.h"
+#include "simoptions.h"
 #include "statespace.h"
-#include "moveutil.h"
+
 
 typedef std::vector<bool> boolvector;
 typedef std::vector<bool>::iterator boolvector_iterator;
@@ -63,19 +60,18 @@ private:
 
 	int InitializeSystem(PyObject *alternate_start = NULL);
 
-	void InitializeRNG(void);
+	void InitializePRNG();
 	void generateNextRandom(void);
 	void finalizeRun(void);
 	void finalizeSimulation(void);
 
 	// helper function for sending current state to Python side
-	void dumpCurrentStateToPython(void);
+	void dumpEndStateToPython(void);
 	void sendTrajectory_CurrentStateToPython(double current_time, double arrType = -77.0);
 	void sendTransitionStateVectorToPython(boolvector transition_states, double current_time);
 
 	void exportTime(double& simTime, double& lastExportTime);
 	void exportInterval(double simTime, long period, double arrType = -88.0);
-	void exportTrajState(double simTime, double* lastExportTime, int period);
 
 	void initializeTransitions(PyObject*, bool);
 	void iterateTransitions(
@@ -89,11 +85,34 @@ private:
 
 	PyObject *system_options = NULL;
 
-	long current_seed = 0;
+	/* Management of the Libc PRNG buffer.
+	 *
+	 *   Initialization:
+	 *     First trajectory:
+	 *       - `SimulationSystem::InitializePRNG()`
+	 *     Subsequent trajectories:
+	 *       - `SimulationSystem::generateNextRandom()`
+	 *
+	 *   Read/write access during simulation:
+	 *     Kinetic Monte Carlo:
+	 *       - `SimTimer::advanceTime()`
+	 *
+	 *   Read access for simulation output:
+	 *     Trajectory initialization:
+	 *       - `SimulationSystem::InitializeSystem()`
+	 *     Kinetic Monte Carlo:
+	 *       - `SimulationSystem::sendTrajectory_CurrentStateToPython()`
+	 *     Trajectory termination:
+	 *       - `SimulationSystem::dumpEndStateToPython()`
+	 *       - `SimOptions::stopResult*()`
+	 */
+	seed32_t trajectory_seed = 0; 		 // PRNG seed at the initial state
+	seed48_t* current_state_seed = NULL; // full PRNG buffer at the current state
+
 	long simulation_mode;
 	long simulation_count_remaining;
 
-	//bool triggers for output
+	// triggers for output
 	bool exportStatesTime = false;
 	bool exportStatesInterval = false;
 

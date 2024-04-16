@@ -19,34 +19,43 @@ The Multistrand Team (help@multistrand.org)
 /***************************************/
 
 /* Utility */
-#define _m_prepStatusTuple( seed, com_type, time, tag ) \
-  Py_BuildValue("(lids)", seed,(int) (com_type), time, tag )
+//
+// These prep functions return a new reference via Py_BuildValue,
+// error checking and reference counting is the caller's responsibility.
 
-#define _m_prepTrajTuple( tag, time ) \
-  Py_BuildValue("(sd)", tag, time)
+#define _m_prepStatusTuple(seed, com_type, time, tag) \
+  Py_BuildValue("(lids)", seed,(int) (com_type), time, tag)
 
-#define _m_prepStatusFirstTuple( seed, com_type, com_time, frate, tag) \
-  Py_BuildValue("(lidds)", seed, com_type, com_time, frate, tag )
+#define _m_prepStatusFirstTuple(seed, com_type, com_time, frate, tag) \
+  Py_BuildValue("(lidds)", seed, com_type, com_time, frate, tag)
 
-#define _m_prepComplexStateTuple( seed, id, names, sequence, structure, energy, enthalpy ) \
-  Py_BuildValue("(lisssdd)", seed, id, names, sequence, structure, energy, enthalpy )
-/* These four prep functions return a new reference via Py_BuildValue, error checking and reference counting is the caller's responsibility. */
+#define _m_prepComplexStateTuple(seed, id, names, sequence, structure, energy, enthalpy) \
+  Py_BuildValue("((HHH)isssdd)", \
+    (*seed)[0], (*seed)[1], (*seed)[2], id, names, sequence, structure, energy, enthalpy)
+
 
 /* Accessors (ref counting caller responsibility) */
 #define getStringAttr(obj, name, pyo) PyUnicode_AsUTF8(pyo=PyObject_GetAttrString(obj, #name))
 #define getStringAttrReify(obj, name, pyo) PyUnicode_AsUTF8(pyo=_m_reify_GetAttrString(obj, #name))
 #define getListAttr(obj, name) PyObject_GetAttrString(obj, #name)
 #define getListAttrReify(obj, name) _m_reify_GetAttrString(obj, #name)
+#define getPRNGSeed(obj, name, var)                           \
+  do {                                                        \
+    PyObject *attr = _m_reify_GetAttrString(obj, #name);      \
+    PyArg_ParseTuple(attr, "HHH", &var[0], &var[1], &var[2]); \
+    assert(PyErr_Occurred() == NULL);                         \
+    Py_DECREF(attr);                                          \
+  } while(0)
 
 /* List indexing (ref counting caller responsibility) */
 #define getStringItem(list, index) PyUnicode_AsUTF8(PyList_GET_ITEM(list, index))
 
 // Function calls
-#define pushTrajectoryInfo( obj, time ) \
-  setDoubleAttr( obj, add_trajectory_current_time, time )
+#define pushTrajectoryInfo(obj, time) \
+  setDoubleAttr(obj, add_trajectory_current_time, time)
 
-#define pushTrajectoryInfo2( obj, arrType ) \
-  setDoubleAttr( obj, add_trajectory_arrType, (double) arrType)
+#define pushTrajectoryInfo2(obj, arrType) \
+  setDoubleAttr(obj, add_trajectory_arrType, (double) arrType)
 
 
 /***************************************/
@@ -118,18 +127,16 @@ The Multistrand Team (help@multistrand.org)
 // returned null it might be an error...
 
 // Setters
-#define setDoubleAttr(obj, name, arg) _m_setAttr_DECREF( obj, #name, PyFloat_FromDouble, (arg))
-#define setLongAttr(obj, name, arg) _m_setAttr_DECREF( obj, #name, PyLong_FromLong, (arg))
-
-#define setStringAttr(obj, name, arg) _m_setStringAttr( obj, #name, (arg) )
+#define setDoubleAttr(obj, name, arg) _m_setAttr_DECREF(obj, #name, PyFloat_FromDouble, (arg))
+#define setLongAttr(obj, name, arg) _m_setAttr_DECREF(obj, #name, PyLong_FromLong, (arg))
+#define setStringAttr(obj, name, arg) _m_setStringAttr(obj, #name, (arg))
 
 // Testers
-#define testLongAttr(obj, name, test, value) _m_testLongAttr( obj, #name, #test, value )
-#define testBoolAttr(obj, name) _m_testLongAttr( obj, #name, "=", 1 )
+#define testLongAttr(obj, name, test, value) _m_testLongAttr(obj, #name, #test, value)
+#define testBoolAttr(obj, name) _m_testLongAttr(obj, #name, "=", 1)
 
 // Function calls
-
-#define _m_pushList( obj, a, b )                \
+#define _m_pushList(obj, a, b)                  \
   do {                                          \
     PyObject *pyo = a;                          \
     PyObject_SetAttrString( obj, #b, pyo );     \
@@ -147,23 +154,20 @@ The Multistrand Team (help@multistrand.org)
  longer need the ref and the SetAttrString should cause the owning
  object to have a good ref to it.*/
 
-#define printStatusLine( obj, seed, com_type, time, tag ) \
+#define printStatusLine(obj, seed, com_type, time, tag) \
   _m_pushList( obj, _m_prepStatusTuple( seed, com_type, time,(char *)(tag) ), add_result_status_line)
 
-#define printTrajLine( obj, name, time ) \
-  _m_pushList( obj, _m_prepTrajTuple( (char *)(name), time ), print_traj_line )
-
-#define printStatusLine_First_Bimolecular( obj,seed,com_type,com_time,frate,tag) \
+#define printStatusLine_First_Bimolecular(obj,seed,com_type,com_time,frate,tag) \
   _m_pushList( obj, _m_prepStatusFirstTuple( seed, com_type, com_time, frate, (char *)(tag)), add_result_status_line_firststep )
 
-#define printComplexStateLine( obj, seed, data ) \
+#define printComplexStateLine(obj, seed, data) \
   _m_pushList( obj, _m_prepComplexStateTuple( seed, data.id, data.names.c_str(), data.sequence.c_str(), data.structure.c_str(), data.energy, data.enthalpy  ), add_complex_state_line )
 
-#define pushTrajectoryComplex( obj, seed, data ) \
+#define pushTrajectoryComplex(obj, seed, data) \
   _m_pushList( obj, _m_prepComplexStateTuple( seed, data.id, data.names.c_str(), data.sequence.c_str(), data.structure.c_str(), data.energy, data.enthalpy ), add_trajectory_complex )
 
 // This macro DECREFs the passed obj once it's done with it.
-#define pushTransitionInfo( options_obj, obj ) \
+#define pushTransitionInfo(options_obj, obj) \
   _m_pushList( options_obj, obj, add_transition_info )
 
 #endif  // DEBUG_MACROS is FALSE (not set).
@@ -286,7 +290,6 @@ The Multistrand Team (help@multistrand.org)
 // Setters
 #define setDoubleAttr(obj, name, arg) _m_d_setAttr_DECREF( obj, #name, PyFloat_FromDouble, (arg))
 #define setLongAttr(obj, name, arg) _m_d_setAttr_DECREF( obj, #name, PyLong_FromLong, (arg))
-
 #define setStringAttr(obj, name, arg) _m_d_setStringAttr( obj, #name, (arg ))
 // note: any reference this creates is not the responsibility of the caller.
 
@@ -317,16 +320,13 @@ The Multistrand Team (help@multistrand.org)
 #define printStatusLine( obj, seed, com_type,time, tag ) \
   _m_d_pushList( obj, _m_prepStatusTuple( seed, com_type, time,(char *)(tag) ), add_result_status_line)
 
-#define printTrajLine( obj, name, time ) \
-  _m_d_pushList( obj, _m_prepTrajTuple( (char *)(name), time ), print_traj_line )
-
 #define printStatusLine_First_Bimolecular( obj,seed,com_type,com_time,frate,tag) \
   _m_d_pushList( obj, _m_prepStatusFirstTuple( seed, com_type, com_time, frate, (char *)(tag)), add_result_status_line_firststep )
 
-#define printComplexStateLine( obj, seed, data ) \
+#define printComplexStateLine(obj, seed, data) \
   _m_d_pushList( obj, _m_prepComplexStateTuple( seed, data.id, data.names.c_str(), data.sequence.c_str(), data.structure.c_str(), data.energy, data.enthalpy  ), add_complex_state_line )
 
-#define pushTrajectoryComplex( obj, seed, data ) \
+#define pushTrajectoryComplex(obj, seed, data) \
   _m_d_pushList( obj, _m_prepComplexStateTuple( seed, data.id, data.names.c_str(), data.sequence.c_str(), data.structure.c_str(), data.energy, data.enthalpy ), add_trajectory_complex )
 
 // This macro DECREFs the passed obj once it's done with it.
@@ -347,7 +347,7 @@ The Multistrand Team (help@multistrand.org)
 /* Force dynamic object attribute to exist
  * (required for some "object properties" in Python 3) */
 inline PyObject *_m_reify_GetAttrString(PyObject *obj, const char *name) {
-    assert(PyObject_HasAttrString(obj, name));
+    PyObject_HasAttrString(obj, name);
     return PyObject_GetAttrString(obj, name);
 }
 

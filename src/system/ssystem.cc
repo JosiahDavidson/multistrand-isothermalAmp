@@ -4,17 +4,10 @@ Copyright (c) 2008-2024 California Institute of Technology. All rights reserved.
 The Multistrand Team (help@multistrand.org)
 */
 
-#include "options.h"
-#include "ssystem.h"
-#include "simoptions.h"
-#include "multistrand_module.h"
-#include "statespace.h"
-
-#include <string.h>
 #include <time.h>
-#include <stdlib.h>
-#include <vector>
-#include <iostream>
+
+#include "options.h"
+#include "multistrand_module.h"
 
 
 SimulationSystem::SimulationSystem(PyObject *options) :
@@ -86,16 +79,16 @@ SimulationSystem::~SimulationSystem(void) {
 
 void SimulationSystem::StartSimulation(void) {
 
-	InitializeRNG();
+	InitializePRNG();
 	if (simulation_mode & SIMULATION_MODE_FLAG_FIRST_BIMOLECULAR) {
 		StartSimulation_FirstStep();
 	} else if (simulation_mode & SIMULATION_MODE_FLAG_TRAJECTORY) {
 		StartSimulation_Trajectory();
 	} else if (simulation_mode & SIMULATION_MODE_FLAG_TRANSITION) {
 		StartSimulation_Transition();
-	} else
+	} else {
 		StartSimulation_Standard();
-
+	}
 	finalizeSimulation();
 
 }
@@ -116,7 +109,6 @@ void SimulationSystem::StartSimulation_FirstStep(void) {
 
 		SimulationLoop_FirstStep();
 		finalizeRun();
-
 	}
 
 }
@@ -129,7 +121,6 @@ void SimulationSystem::StartSimulation_Standard(void) {
 
 		SimulationLoop_Standard();
 		finalizeRun();
-
 	}
 
 }
@@ -143,7 +134,6 @@ void SimulationSystem::StartSimulation_Transition(void) {
 
 		SimulationLoop_Transition();
 		finalizeRun();
-
 	}
 }
 
@@ -159,7 +149,6 @@ void SimulationSystem::StartSimulation_Trajectory(void) {
 
 		SimulationLoop_Trajectory();
 		finalizeRun();
-
 	}
 }
 
@@ -202,6 +191,7 @@ void SimulationSystem::finalizeSimulation(void) {
 void SimulationSystem::SimulationLoop_Standard(void) {
 
 	SimTimer myTimer(*simOptions);
+	current_state_seed = myTimer.getPRNG();
 	stopComplexes *traverse = NULL, *first = NULL;
 
 	bool checkresult = false;
@@ -235,7 +225,7 @@ void SimulationSystem::SimulationLoop_Standard(void) {
 
 			if (myTimer.stopoptions) {
 				if (myTimer.stopcount <= 0) {
-					simOptions->stopResultError(current_seed);
+					simOptions->stopResultError(trajectory_seed);
 					return;
 				}
 
@@ -260,26 +250,25 @@ void SimulationSystem::SimulationLoop_Standard(void) {
 	} while (myTimer.stime < myTimer.maxsimtime && !checkresult);
 
 	if (myTimer.stime == NAN) {
-
-		simOptions->stopResultNan(current_seed);
-
+		simOptions->stopResultNan(trajectory_seed);
 	} else if (checkresult) {
-
-		dumpCurrentStateToPython();
-		simOptions->stopResultNormal(current_seed, myTimer.stime, traverse->tag);
+		dumpEndStateToPython();
+		simOptions->stopResultNormal(trajectory_seed, myTimer.stime, traverse->tag);
 		delete first;
-
 	} else { // stime >= maxsimtime
-
-		dumpCurrentStateToPython();
-		simOptions->stopResultTime(current_seed, myTimer.maxsimtime);
-
+		dumpEndStateToPython();
+		simOptions->stopResultTime(trajectory_seed, myTimer.maxsimtime);
 	}
+
+	// required for `SimulationSystem::generateNextRandom()`
+	myTimer.writePRNG();
+	current_state_seed = NULL;
 }
 
 void SimulationSystem::SimulationLoop_Trajectory() {
 
 	SimTimer myTimer(*simOptions);
+	current_state_seed = myTimer.getPRNG();
 	stopComplexes *traverse = NULL, *first = NULL;
 
 	bool stopFlag = false;
@@ -290,16 +279,15 @@ void SimulationSystem::SimulationLoop_Trajectory() {
 
 	if (myTimer.stopoptions) {
 		if (myTimer.stopcount <= 0) {
-			simOptions->stopResultError(current_seed);
+			simOptions->stopResultError(trajectory_seed);
 			return;
 		}
 		first = simOptions->getStopComplexes(0);
 	}
 
 	// write the initial state:
-	if (exportStatesInterval) {
+	if (exportStatesInterval)
 		exportInterval(myTimer.stime, current_state_count);
-	}
 
 	do {
 
@@ -337,29 +325,29 @@ void SimulationSystem::SimulationLoop_Trajectory() {
 	} while (myTimer.stime < myTimer.maxsimtime && !stopFlag);
 
 	if (myTimer.stime == NAN) {
-
-		simOptions->stopResultNan(current_seed);
-
+		simOptions->stopResultNan(trajectory_seed);
 	} else if (stopFlag) {
-
-		simOptions->stopResultNormal(current_seed, myTimer.stime, traverse->tag);
+		dumpEndStateToPython();
+		simOptions->stopResultNormal(trajectory_seed, myTimer.stime, traverse->tag);
 		// now export the tag to the builder as well
 		builder.stopResultNormal(myTimer.stime, string(traverse->tag));
-
 	} else {
-
-		simOptions->stopResultTime(current_seed, myTimer.stime);
-
+		dumpEndStateToPython();
+		simOptions->stopResultTime(trajectory_seed, myTimer.stime);
 	}
 
-	if (first != NULL) {
+	if (first != NULL)
 		delete first;
-	}
+
+	// required for `SimulationSystem::generateNextRandom()`
+	myTimer.writePRNG();
+	current_state_seed = NULL;
 }
 
 void SimulationSystem::SimulationLoop_Transition(void) {
 
 	SimTimer myTimer(*simOptions);
+	current_state_seed = myTimer.getPRNG();
 	stopComplexes *traverse = NULL, *first = NULL;
 
 	bool checkresult = false;
@@ -368,7 +356,7 @@ void SimulationSystem::SimulationLoop_Transition(void) {
 
 	if (myTimer.stopcount <= 0 || !myTimer.stopoptions) {
 		// this simulation mode MUST have some stop conditions set.
-		simOptions->stopResultError(current_seed);
+		simOptions->stopResultError(trajectory_seed);
 		return;
 	}
 
@@ -387,7 +375,6 @@ void SimulationSystem::SimulationLoop_Transition(void) {
 	checkresult = false;
 
 	for (int idx = 0; idx < myTimer.stopcount; idx++) {
-
 		if (strstr(traverse->tag, "stop:") == traverse->tag)
 			stop_entries[idx] = true;
 
@@ -426,7 +413,7 @@ void SimulationSystem::SimulationLoop_Transition(void) {
 					// multiple stop states could suddenly be true, we add
 					// a status line entry for the first one found.
 					if (!stopFlag) {
-						simOptions->stopResultNormal(current_seed, myTimer.stime, traverse->tag);
+						simOptions->stopResultNormal(trajectory_seed, myTimer.stime, traverse->tag);
 					}
 
 					stopFlag = true;
@@ -451,25 +438,24 @@ void SimulationSystem::SimulationLoop_Transition(void) {
 	} while (myTimer.stime < myTimer.maxsimtime && !stopFlag);
 
 	if (myTimer.stime == NAN) {
-
-		simOptions->stopResultNan(current_seed);
-
+		simOptions->stopResultNan(trajectory_seed);
 	} else if (stopFlag) {
-
-		dumpCurrentStateToPython();
-
+		dumpEndStateToPython();
+		simOptions->stopResultNormal(trajectory_seed, myTimer.stime, traverse->tag);
 	} else { // stime >= maxsimtime
-
-		dumpCurrentStateToPython();
-		simOptions->stopResultTime(current_seed, myTimer.maxsimtime);
-
+		dumpEndStateToPython();
+		simOptions->stopResultTime(trajectory_seed, myTimer.maxsimtime);
 	}
 
+	// required for `SimulationSystem::generateNextRandom()`
+	myTimer.writePRNG();
+	current_state_seed = NULL;
 }
 
 void SimulationSystem::SimulationLoop_FirstStep(void) {
 
 	SimTimer myTimer(*simOptions);
+	current_state_seed = myTimer.getPRNG();
 	stopComplexes *traverse = NULL, *first = NULL;
 
 	bool stopFlag = false;
@@ -498,7 +484,7 @@ void SimulationSystem::SimulationLoop_FirstStep(void) {
 
 		noInitialMoves++;
 
-		simOptions->stopResultFirstStep(current_seed, 0.0, 0.0, result_type::STR_NOINITIAL.c_str());
+		simOptions->stopResultFirstStep(trajectory_seed, 0.0, 0.0, result_type::STR_NOINITIAL.c_str());
 		return;
 	}
 
@@ -566,45 +552,39 @@ void SimulationSystem::SimulationLoop_FirstStep(void) {
 	} while (myTimer.stime < myTimer.maxsimtime && !stopFlag);
 
 	if (stopFlag) {
-		dumpCurrentStateToPython();
-		simOptions->stopResultFirstStep(current_seed, myTimer.stime, frate, traverse->tag);
+		dumpEndStateToPython();
+		simOptions->stopResultFirstStep(trajectory_seed, myTimer.stime, frate, traverse->tag);
 		delete first;
 	} else {
 		timeOut++;
-		dumpCurrentStateToPython();
-		simOptions->stopResultFirstStep(current_seed, myTimer.stime, frate, result_type::STR_TIMEOUT.c_str());
+		dumpEndStateToPython();
+		simOptions->stopResultFirstStep(trajectory_seed, myTimer.stime, frate, result_type::STR_TIMEOUT.c_str());
 	}
 
+	// required for `SimulationSystem::generateNextRandom()`
+	myTimer.writePRNG();
+	current_state_seed = NULL;
 }
 
-///////////////////////////////////////////////////////////
-// void dumpCurrentStateToPython( void );				  //
-// 													  //
-// Helper function to send current state to python side. //
-///////////////////////////////////////////////////////////
-void SimulationSystem::dumpCurrentStateToPython(void) {
+// Helper function to send the current state to the Python module.
+void SimulationSystem::dumpEndStateToPython(void) {
 
 	SComplexListEntry *temp = complexList->getFirst();
 	ExportData data;
 
 	while (temp != NULL) {
 		temp->dumpComplexEntryToPython(data, energyModel);
-		printComplexStateLine(simOptions->getPythonSettings(), current_seed, data);
-
+		printComplexStateLine(simOptions->getPythonSettings(), current_state_seed, data);
 		temp = temp->next;
 	}
 }
 
-/////////////////////////////////////////////////////////////////////////////////////
-// void sendTransitionStateVectorToPython( boolvector transition_states );		   //
-// 																				   //
-// Helper function to prepare a Python list object containing the bool information //
-//  about which transition states we are in.									   //
-/////////////////////////////////////////////////////////////////////////////////////
-
+// Helper function to prepare a Python list object containing the bool information
+// about which transition states we are in.
 void SimulationSystem::sendTransitionStateVectorToPython(boolvector transition_states, double current_time) {
+
 	PyObject *mylist = PyList_New((Py_ssize_t) transition_states.size());
-// we now have a new reference here that we'll need to DECREF.
+	// we now have a new reference here that we'll need to DECREF.
 
 	if (mylist == NULL)
 		return; // TODO: Perhaps raise an exception to the Python side here that
@@ -628,25 +608,19 @@ void SimulationSystem::sendTransitionStateVectorToPython(boolvector transition_s
 	}
 
 	PyObject *transition_tuple = Py_BuildValue("dO", current_time, mylist);
-// we now have a new reference to transition_tuple.  note that our
-// reference to mylist has NOT been stolen by this call [it was
-// increffed in the call itself, so we can decref now with no
-// worries]
+	// we now have a new reference to transition_tuple.  note that our
+	// reference to mylist has NOT been stolen by this call [it was
+	// increffed in the call itself, so we can decref now with no
+	// worries]
 	Py_DECREF(mylist);
-// we now have no references to mylist directly owned [though transition tuple has one via BuildValue]
+	// we now have no references to mylist directly owned [though transition tuple has one via BuildValue]
 
 	pushTransitionInfo(system_options, transition_tuple);
 
-// transition_tuple has been decreffed by this macro, so we no longer own any references to it
-
+	// transition_tuple has been decreffed by this macro, so we no longer own any references to it
 }
 
-///////////////////////////////////////////////////////////
-// void sendTrajectory_CurrentStateToPython( void );	  //
-// 													  //
-// Helper function to send current state to python side. //
-///////////////////////////////////////////////////////////
-
+// Helper function to send the current state to the Python module.
 void SimulationSystem::sendTrajectory_CurrentStateToPython(double current_time, double arrType) {
 
 	ExportData data;
@@ -657,27 +631,18 @@ void SimulationSystem::sendTrajectory_CurrentStateToPython(double current_time, 
 	while (temp != NULL) {
 
 		temp->dumpComplexEntryToPython(data, energyModel);
-
-		if (!simOptions->statespaceActive) {
-			pushTrajectoryComplex(system_options, current_seed, data);
-		}
-
-		temp = temp->next;
-
+		if (!simOptions->statespaceActive)
+			pushTrajectoryComplex(system_options, current_state_seed, data);
 		mergedData.merge(data);
-
+		temp = temp->next;
 	}
 
 	// for now, keep exporting the state to the regular interface too.
 	if (simOptions->statespaceActive) {
-
 		builder.addState(mergedData, arrType);
-
 	} else {
-
 		pushTrajectoryInfo(system_options, current_time);
 		pushTrajectoryInfo2(system_options, arrType);
-
 	}
 
 }
@@ -687,7 +652,7 @@ int SimulationSystem::InitializeSystem(PyObject *alternate_start) {
 	StrandComplex *tempcomplex;
 	identList *id;
 
-	simOptions->generateComplexes(alternate_start, current_seed);
+	simOptions->generateComplexes(alternate_start, trajectory_seed);
 
 	// FD: Somehow, check if complex list is pre-populated.
 	startState = NULL;
@@ -711,7 +676,6 @@ int SimulationSystem::InitializeSystem(PyObject *alternate_start) {
 
 		startState = tempcomplex;
 		complexList->addComplex(tempcomplex);
-
 	}
 
 	if (simOptions->debug)
@@ -720,31 +684,49 @@ int SimulationSystem::InitializeSystem(PyObject *alternate_start) {
 	return 0;
 }
 
-void SimulationSystem::InitializeRNG(void) {
+void SimulationSystem::InitializePRNG() {
 
-	FILE *fp = NULL;
+	if (simOptions->useStateSeed()) {
 
-	if (simOptions->useFixedRandomSeed()) {
-		current_seed = simOptions->getSeed();
+		trajectory_seed = 0;
+		current_state_seed = simOptions->getStateSeed();
+		// initialize the Libc internal PRNG buffer
+		seed48(*current_state_seed);
+
+	} else if (simOptions->useTrajSeed()) {
+
+		trajectory_seed = simOptions->getTrajSeed();
+		// initialize the Libc internal PRNG buffer
+		srand48(trajectory_seed);
+
 	} else {
-		if ((fp = fopen("/dev/urandom", "r")) != NULL) { // if urandom exists, use it to provide a seed
+
+		FILE *fp = NULL;
+		if ((fp = fopen("/dev/urandom", "r")) != NULL) {
+			// if urandom exists, use it to provide a seed
 			long deviceseed;
 			(void) fread(&deviceseed, sizeof(long), 1, fp);
-
-			current_seed = deviceseed;
+			trajectory_seed = deviceseed;
 			fclose(fp);
-		} else // use the possibly flawed time as a seed.
-		{
-			current_seed = time(NULL);
+		} else {
+			// use the possibly flawed time as a seed
+			trajectory_seed = time(NULL);
 		}
+		// initialize the Libc internal PRNG buffer
+		srand48(trajectory_seed);
+
 	}
-// now initialize this generator using our random seed, so that we can reproduce as necessary.
-	srand48(current_seed);
+
+	current_state_seed = NULL;
 }
 
 void SimulationSystem::generateNextRandom(void) {
-	current_seed = lrand48();
-	srand48(current_seed);
+
+	// assumes that `myTimer.writePRNG()` was called at the end of the
+	// current trajectory, before deallocating `myTimer`
+	trajectory_seed = lrand48();
+	srand48(trajectory_seed);
+	current_state_seed = NULL;
 }
 
 PyObject *SimulationSystem::calculateEnergy(PyObject *start_state, int typeflag) {
@@ -776,21 +758,16 @@ PyObject *SimulationSystem::calculateEnergy(PyObject *start_state, int typeflag)
 void SimulationSystem::exportTime(double& simTime, double& lastExportTime) {
 
 	if (simTime - lastExportTime > simOptions->getOTime()) {
-
 		lastExportTime += simOptions->getOTime();
 		sendTrajectory_CurrentStateToPython(lastExportTime);
-
 	}
 
 }
 
 void SimulationSystem::exportInterval(double simTime, long transitionCount, double arrType) {
 
-	if ((transitionCount % simOptions->getOInterval()) == 0) {
-
+	if ((transitionCount % simOptions->getOInterval()) == 0)
 		sendTrajectory_CurrentStateToPython(simTime, arrType);
-
-	}
 
 }
 
@@ -889,6 +866,7 @@ void SimulationSystem::iterateTransitions(
 
 		// rely on event space parametrization
 		SimTimer myTimer(*simOptions);
+		current_state_seed = myTimer.getPRNG();
 		myTimer.rchoice = i + 0.01;
 
 		// export the initial state
@@ -950,7 +928,7 @@ void SimulationSystem::iterateTransitions(
 				exportInterval(myTimer.stime, 1, ArrMoveType);
 			finalizeRun();
 		}
-
+		current_state_seed = NULL;
 	}
 	
 	if (print)
@@ -1004,7 +982,7 @@ void SimulationSystem::stateInfo(PyObject *start_state) {
 void SimulationSystem::localTransitions(void) {
 
 	assert(simOptions->statespaceActive);
-	InitializeRNG(); // the output dir will be '0' if unset
+	InitializePRNG(); // the output dir will be '0' if unset
 
 	bool send = true, print = false;
 	iterateTransitions(NULL, false, send, print);

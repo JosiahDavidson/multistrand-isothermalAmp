@@ -13,8 +13,8 @@ The Multistrand Team (help@multistrand.org)
 #include <sstream>
 #include <iomanip>
 
-#include "optionlists.h"
 #include "basetype.h"
+#include "optionlists.h"
 
 using namespace std;
 
@@ -23,13 +23,13 @@ namespace utility {
 
 //helper functions
 
-void sequenceToString(std::ostream&, BaseType*, int);
+void sequenceToString(ostream&, BaseType*, int);
 
 char* copyToCharArray(string&);
 
 string copyToString(char*);
 
-void moveType(std::ostream&, int);
+void moveType(ostream&, int);
 
 }
 

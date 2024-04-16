@@ -13,16 +13,17 @@ from multistrand.utils.utility import printTrajectory
 from multistrand.experiment import standardOptions, hybridization
 
     
-def doSims(strandSeq, numTraj=1):
+def doSims(strandSeq, numTraj=2):
     o = standardOptions()
     o.num_simulations = numTraj
     o.output_interval = 1
     o.simulation_time = 0.01
     hybridization(o, strandSeq)
+    o.DNA23Metropolis()
 
     s = SimSystem(o)
     s.start()
-    printTrajectory(o)
+    printTrajectory(o, show_seed=True)
     return o, s
 
 

@@ -4,16 +4,12 @@ Copyright (c) 2008-2024 California Institute of Technology. All rights reserved.
 The Multistrand Team (help@multistrand.org)
 */
 
-#include <vector>
 #include <iostream>
-#include <string>
 #include <sstream>
 #include <cmath>
 
-#include "options.h"	 	// python options helper
 #include "energyoptions.h"
-#include "moveutil.h"
-#include "sequtil.h"
+#include "options.h"	 	// python options helper
 
 using std::vector;
 using std::string;

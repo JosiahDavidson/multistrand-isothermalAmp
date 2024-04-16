@@ -17,8 +17,6 @@ const int MOVE_1 = 8;
 const int MOVE_2 = 16;
 const int MOVE_3 = 32;
 
-#include <string>
-#include <moveutil.h>
 #include "energymodel.h"
 #include "simtimer.h"
 

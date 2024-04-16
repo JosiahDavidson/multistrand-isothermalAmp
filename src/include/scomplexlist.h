@@ -11,10 +11,6 @@ The Multistrand Team (help@multistrand.org)
 #include <iostream>
 
 #include "scomplex.h"
-#include "energymodel.h"
-#include "optionlists.h"
-#include "simtimer.h"
-#include "strandordering.h"
 
 using std::cout;
 

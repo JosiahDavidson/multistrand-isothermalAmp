@@ -12,9 +12,10 @@ The Multistrand Team (help@multistrand.org)
 #ifndef __STATESPACE_H__
 #define __STATESPACE_H__
 
-#include <scomplexlist.h>
 #include <unordered_map>
 #include <unordered_set>
+
+#include "scomplexlist.h"
 
 using std::unordered_map;
 using std::unordered_set;

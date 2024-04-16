@@ -4,34 +4,28 @@ Copyright (c) 2008-2024 California Institute of Technology. All rights reserved.
 The Multistrand Team (help@multistrand.org)
 */
 
-#include "options.h"	 // python options helper
-#include "ssystem.h"
-#include "simoptions.h"
-#include "energyoptions.h"
-#include "scomplex.h"
-
-#include <time.h>
-#include <vector>
-#include <iostream>
-#include <string>
 #include <sstream>
 #include <cstring>
+
+#include "options.h"	 // Python options helper
+#include "ssystem.h"
 
 using std::vector;
 using std::string;
 
-SimOptions::~SimOptions(void) {
 
-// empty deconstructor
-
-}
+SimOptions::~SimOptions(void) {}
 
 PSimOptions::PSimOptions(PyObject* options) : python_settings(options)
 {
 	// initializers calling Python object -- these can use a super object getter.
-	getBoolAttr(python_settings, initial_seed_flag, &fixedRandomSeed);
-	if (fixedRandomSeed)
-		getLongAttr(python_settings, initial_seed, &seed);
+
+	getBoolAttr(python_settings, initial_seed_flag, &fixedTrajSeed);
+	if (fixedTrajSeed)
+		getLongAttr(python_settings, initial_seed, &traj_seed);
+	getBoolAttr(python_settings, state_seed_flag, &fixedStateSeed);
+	if (fixedStateSeed)
+		getPRNGSeed(python_settings, state_seed, state_seed);
 
 	energyOptions = new PEnergyOptions(python_settings);
 
@@ -41,6 +35,7 @@ PSimOptions::PSimOptions(PyObject* options) : python_settings(options)
 	getDoubleAttr(python_settings, output_time, &o_time);
 	getLongAttr(python_settings, stop_count, &stop_count);
 	getLongAttr(python_settings, use_stop_conditions, &stop_options);
+	getDoubleAttr(python_settings, simulation_start_time, &start_sim_time);
 	getDoubleAttr(python_settings, simulation_time, &max_sim_time);
 
 	// to print the initial state, used for statespace building
@@ -76,14 +71,18 @@ string SimOptions::toString() {
 
 	std::stringstream ss;
 
-	ss << "simulation_mode = " << simulation_mode << " \n";
-	ss << "simulation_count = " << simulation_count << " \n";
-	ss << "o_interval = " << o_interval << " \n";
-	ss << "o_time = " << o_time << " \n";
-	ss << "stop_options = " << stop_options << " \n";
-	ss << "stop_count = " << stop_count << " \n";
-	ss << "max_sim_time = " << max_sim_time << " \n";
-	ss << "seed = " << seed << " \n";
+	ss << "simulation_mode = " << simulation_mode << "\n";
+	ss << "simulation_count = " << simulation_count << "\n";
+	ss << "o_interval = " << o_interval << "\n";
+	ss << "o_time = " << o_time << "\n";
+	ss << "stop_options = " << stop_options << "\n";
+	ss << "stop_count = " << stop_count << "\n";
+	ss << "start_sim_time = " << start_sim_time << "\n";
+	ss << "max_sim_time = " << max_sim_time << "\n";
+	ss << "traj_seed = " << traj_seed << "\n";
+	ss << "state_seed = ("
+	   << state_seed[0] << "," << state_seed[1] << "," << state_seed[2]
+	   << ")\n";
 
 	string output = ss.str();
 	output += energyOptions->toString();
@@ -91,16 +90,24 @@ string SimOptions::toString() {
 
 }
 
-bool SimOptions::useFixedRandomSeed() {
+bool SimOptions::useTrajSeed() {
 
-	return fixedRandomSeed;
-
+	return fixedTrajSeed;
 }
 
-long SimOptions::getSeed() {
+bool SimOptions::useStateSeed() {
 
-	return seed;
+	return fixedStateSeed;
+}
 
+seed32_t SimOptions::getTrajSeed() {
+
+	return traj_seed;
+}
+
+seed48_t* SimOptions::getStateSeed() {
+
+	return &state_seed;
 }
 
 EnergyOptions* SimOptions::getEnergyOptions() {
@@ -145,6 +152,12 @@ long SimOptions::getStopCount(void) {
 
 }
 
+double SimOptions::getStartSimTime(void) {
+
+	return start_sim_time;
+
+}
+
 double SimOptions::getMaxSimTime(void) {
 
 	return max_sim_time;
@@ -168,7 +181,7 @@ PyObject* PSimOptions::getPythonSettings() {
 
 }
 
-void PSimOptions::generateComplexes(PyObject *alternate_start, long current_seed) {
+void PSimOptions::generateComplexes(PyObject *alternate_start, seed32_t trajectory_seed) {
 
 	if (debug)
 		cout << "Start generating complexes..." << endl;
@@ -238,15 +251,14 @@ void PSimOptions::generateComplexes(PyObject *alternate_start, long current_seed
 
 			Py_DECREF(py_seq);
 			Py_DECREF(py_struc);
-
 		}
 
 		// Update the current seed and store the starting structures
 		//   note: only if we actually have a system_options, e.g. no alternate start
 		if (alternate_start == NULL && python_settings != NULL) {
-			setLongAttr(python_settings, interface_current_seed, current_seed);
+			setLongAttr(python_settings, interface_trajectory_seed, trajectory_seed);
 		}
-		seed = current_seed;
+		traj_seed = trajectory_seed;
 
 	}
 
@@ -261,7 +273,7 @@ stopComplexes* PSimOptions::getStopComplexes(int) {
 
 }
 
-void PSimOptions::stopResultError(long seed) {
+void PSimOptions::stopResultError(seed32_t seed) {
 
 	if (!statespaceActive) {
 		printStatusLine(python_settings, seed, STOPRESULT_ERROR, 0.0, result_type::STR_ERROR.c_str());
@@ -269,7 +281,7 @@ void PSimOptions::stopResultError(long seed) {
 
 }
 
-void PSimOptions::stopResultNan(long seed) {
+void PSimOptions::stopResultNan(seed32_t seed) {
 
 	if (!statespaceActive) {
 		printStatusLine(python_settings, seed, STOPRESULT_NAN, 0.0, result_type::STR_NAN.c_str());
@@ -277,7 +289,7 @@ void PSimOptions::stopResultNan(long seed) {
 
 }
 
-void PSimOptions::stopResultNormal(long seed, double time, char* message) {
+void PSimOptions::stopResultNormal(seed32_t seed, double time, char* message) {
 
 	if (!statespaceActive) {
 		printStatusLine(python_settings, seed, STOPRESULT_NORMAL, time, message);
@@ -285,7 +297,7 @@ void PSimOptions::stopResultNormal(long seed, double time, char* message) {
 
 }
 
-void PSimOptions::stopResultTime(long seed, double time) {
+void PSimOptions::stopResultTime(seed32_t seed, double time) {
 
 	if (!statespaceActive) {
 		printStatusLine(python_settings, seed, STOPRESULT_TIME, time, result_type::STR_TIMEOUT.c_str());
@@ -293,7 +305,7 @@ void PSimOptions::stopResultTime(long seed, double time) {
 
 }
 
-void PSimOptions::stopResultFirstStep(long seed, double stopTime, double rate, const char* message) {
+void PSimOptions::stopResultFirstStep(seed32_t seed, double stopTime, double rate, const char* message) {
 
 	if (!statespaceActive) {
 		printStatusLine_First_Bimolecular(python_settings, seed, STOPRESULT_NORMAL, stopTime, rate, message);

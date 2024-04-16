@@ -4,19 +4,16 @@ Copyright (c) 2008-2024 California Institute of Technology. All rights reserved.
 The Multistrand Team (help@multistrand.org)
 */
 
-#include <Python.h>
+#include <sstream>
+#include <assert.h>
 
 // StrandOrdering object
 // used to track sequences and structures within a complex for easy printing, etc.
-#include "scomplex.h" // implicitly includes strandordering.h, and is necessary for proper ordering. TODO: decorrelate these headers, they should be independent.
-#include <string>
-#include <sstream>
-#include <assert.h>
-#include <iostream>
-#include <utility.h>
-#include "basetype.h"
 
-
+#include "utility.h"
+// implicitly includes strandordering.h, and is necessary for proper ordering.
+// TODO: decorrelate these headers, they should be independent.
+#include "scomplex.h"
 
 using std::cout;
 

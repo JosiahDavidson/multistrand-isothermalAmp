@@ -3,14 +3,14 @@
 # The Multistrand Team (help@multistrand.org)
 
 from contextlib import nullcontext
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 import numpy as np
 import pytest
 
 from multistrand.objects import Complex, Domain, Strand
 from multistrand.options import Options, Literals
-from multistrand.utils.utility import generate_sequence
+from multistrand.utils.utility import generate_sequence, printTrajectory
 from multistrand.system import SimSystem
 from multistrand.concurrent import MergeSim
 
@@ -20,21 +20,25 @@ from multistrand.concurrent import MergeSim
     ["JSMetropolis25", "JSMetropolis37", "JSKawasaki25", "JSKawasaki37",
      "DNA23Metropolis", "DNA23Arrhenius"])
 class Test_Determinism:
-    # jump indices to compare between trajectories
-    history = np.s_[::int(1e2)]
 
     @pytest.mark.parametrize(
         "toehold_seq, bm_design_B, toehold_extra, structure",
         [("GTGGGT", "ACCGCACGTCACTCACCTCG", "TTT",
           "..(.((.....)).).....((((((+))))))((((((((((((((((((((+))))))))))))))))))))")
-         ])
-    @pytest.mark.parametrize("seed", list(np.random.randint(int(1e10), size=5)))
+        ])
+    @pytest.mark.parametrize("seed", list(np.random.randint(1 << 31, size=5)))
     def test_trajectories(cls, rate_model: str,
                           toehold_seq: str, bm_design_B: str, toehold_extra: str,
                           structure: str, seed: int) -> None:
         """
-        Compare two Multistrand trajectories which are configured identically.
+        Compare multiple trajectories from identically configured Multistrand
+        simulations, first replaying from the start (with sparse output),
+        and then replaying from a checkpoint near the end (with full output).
         """
+        # time stepping
+        intvl_full, intvl_tail = int(1e2), 1
+        intvl_idx, num_intvl = -5, 3
+
         # build initial state
         toehold = Domain(
             name="toehold", sequence=toehold_seq, length=len(toehold_seq))
@@ -46,76 +50,86 @@ class Test_Determinism:
         start_complex = Complex(
             strands=[incoming_B, substrate_B, incumbent_B], structure=structure)
 
-        # simulate trajectories
-        opt = cls.create_config(rate_model, [start_complex], seed)
-        structs1, energies1, times1 = cls.single_run(opt, True)
-        structs2, energies2, times2 = cls.single_run(opt, False)
+        # simulate full trajectory twice
+        o_full = cls.create_config(rate_model, [start_complex], seed)
+        o_full.output_interval = intvl_full
+        seeds1, structs1, energies1, times1, end1 = cls.simulate(o_full, False)
+        seeds2, structs2, energies2, times2, end2 = cls.simulate(o_full, False)
 
-        # compare trajectories
+        # compare trajectories (full / full)
+        assert (seeds1 == seeds2).all()
         assert (structs1 == structs2).all()
         assert (energies1 == energies2).all()
         assert (times1 == times2).all()
+        assert end1 == end2
+        assert len(end1) > 0
 
-    @classmethod
-    def single_run(cls, opt: Options, verbose: bool) -> Tuple[np.ndarray,...]:
-        sys = SimSystem(opt)
-        sys.start()
-        return cls.summarise_trajectory(opt, verbose)
+        # replay trajectory tail twice
+        o_tail = o_full.restart_from_checkpoint(intvl_idx)
+        del o_full
+        o_tail.output_interval = intvl_tail
+        seeds3, structs3, energies3, times3, end3 = cls.simulate(o_tail, False)
+        seeds4, structs4, energies4, times4, end4 = cls.simulate(o_tail, False)
+        del o_tail
+
+        # compare trajectories (tail / tail)
+        assert (seeds3 == seeds4).all()
+        assert (structs3 == structs4).all()
+        assert (energies3 == energies4).all()
+        assert (times3 == times4).all()
+        assert end3 == end4
+        assert len(end3) > 0
+
+        # compare trajectories (full / tail)
+        I_full = np.s_[intvl_idx : intvl_idx + num_intvl : 1]
+        I_tail = np.s_[0 : num_intvl * intvl_full : intvl_full]
+        assert (seeds1[I_full] == seeds3[I_tail]).all()
+        assert (structs1[I_full] == structs3[I_tail]).all()
+        assert (energies1[I_full] == energies3[I_tail]).all()
+        assert np.allclose(times1[I_full], times3[I_tail], atol=1e-6)
+
+        # FIXME:
+        #   It appears that there are still undefined behaviours left
+        #   in the C++ simulator, and this test should be helpful for finding
+        #   them eventually. For now, we only have approximate consistency of
+        #   trajectory replays.
+        # assert end1 == end3
 
     @staticmethod
-    def create_config(rate_model: str, start_state: List[Complex],
-                      seed: int) -> Options:
-        o = Options()
-        o.simulation_mode = Literals.trajectory
-        o.initial_seed = seed
-        o.num_simulations = 1
-        o.simulation_time = 5e-4
-        o.temperature = 37.0
-        o.dangles = 1
-        o.start_state = start_state
-        o.output_interval = 1
-        getattr(o, rate_model)()
-        return o
+    def create_config(
+        rate_model: str, start_state: List[Complex], seed: int) -> Options:
+        opt = Options()
+        opt.simulation_mode = Literals.trajectory
+        opt.temperature = 37.0
+        opt.dangles = 1
+        opt.start_state = start_state
+        opt.initial_seed = seed
+        opt.num_simulations = 1
+        opt.simulation_time = 5e-4
+        getattr(opt, rate_model)()
+        return opt
 
     @classmethod
-    def summarise_trajectory(cls, opt: Options,
-                             verbose: bool) -> Tuple[np.ndarray,...]:
-        seqstring = ''
-        times = opt.full_trajectory_times
-        tubestructs = []
-        energies = []
-
-        # go through each output microstate of the trajectory
-        for i in range(len(opt.full_trajectory)):
-            # this is a list of the complexes present in this tube microstate
-            states = opt.full_trajectory[i]
-            # similarly, extract the secondary structures for each complex
-            structs = [s[4] for s in states]
-            # give the dot-paren secondary structure for the whole test tube
-            tubestructs.append(' '.join(structs))
-
-            dG = sum((s[5] for s in states))
-            energies.append(dG)
-
-            # extract the strand sequences in each complex
-            # (joined by "+" for multistranded complexes)
-            newseqs = [s[3] for s in states]
-            # make a space-separated string of complexes, to represent the whole tube system sequence
-            newseqstring = ' '.join(newseqs)
-
-            if not newseqstring == seqstring:
-                # because strand order can change upon association or
-                # dissociation, print it when it changes
-                seqstring = newseqstring
-
-        summary = (np.array(tubestructs[cls.history]),
-                   np.array(energies[cls.history]),
-                   np.array(times[cls.history]))
+    def simulate(cls, opt: Options, verbose: bool) -> Tuple[np.ndarray,...]:
+        sys = SimSystem(opt)
+        sys.start()
         if verbose:
-            for feature, fmt in zip(summary, ["s", "e", "e"]):
-                [print(f"{x:{fmt}}") for x in feature]
-                print()
-        return summary
+            printTrajectory(opt, show_seed=True)
+        return cls.pack_trajectory(opt)
+
+    @classmethod
+    def pack_trajectory(cls, opt: Options) -> Tuple:
+        seeds = np.array(
+            [s[0].seed for s in opt.full_trajectory], dtype=np.uint16)
+        structs = np.array(
+            [' '.join([c.structure for c in s]) for s in opt.full_trajectory],
+            dtype=str)
+        energies = np.array(
+            [sum(cmplx.energy for cmplx in s) for s in opt.full_trajectory],
+            dtype=np.float64)
+        times = np.array(opt.full_trajectory_times, dtype=np.float64)
+        end = opt.interface.end_states
+        return (seeds, structs, energies, times, end)
 
     @pytest.mark.parametrize(
         "random_seq, raising_random",
@@ -124,7 +138,7 @@ class Test_Determinism:
         "wrong_mode, raising_mode",
         [(True, pytest.raises(TypeError)), (False, nullcontext())])
     @pytest.mark.parametrize("seqlen", [7, 23])
-    @pytest.mark.parametrize("seed", list(np.random.randint(int(1e10), size=2)))
+    @pytest.mark.parametrize("seed", list(np.random.randint(1 << 31, size=2)))
     def test_options_factory(
             self, rate_model: str, seqlen: int, seed: int,
             random_seq: bool, raising_random, wrong_mode: bool, raising_mode):
@@ -173,7 +187,7 @@ if __name__ == "__main__":
     bm_design_B = "ACCGCACGTCACTCACCTCG"
     toehold_extra = "TTT"
     structure = "..(.((.....)).).....((((((+))))))((((((((((((((((((((+))))))))))))))))))))"
-    seed = np.random.randint(int(1e10))
+    seed = np.random.randint(1 << 31)
     Test_Determinism().test_trajectories(
         "DNA23Arrhenius", toehold_seq, bm_design_B, toehold_extra, structure,
         seed)

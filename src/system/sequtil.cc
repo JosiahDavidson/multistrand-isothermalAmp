@@ -4,16 +4,12 @@ Copyright (c) 2008-2024 California Institute of Technology. All rights reserved.
 The Multistrand Team (help@multistrand.org)
 */
 
-#include <sequtil.h>
-#include <stdio.h>
 #include <iostream>
 
+#include "sequtil.h"
+
 // base constructor
-BaseCount::BaseCount() {
-
-	// empty
-
-}
+BaseCount::BaseCount() {}
 
 // compatibility constructor
 BaseCount::BaseCount(int* input) {

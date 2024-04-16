@@ -66,10 +66,12 @@ dependencies, and `matplotlib` is added if the package extra `[tutorials]` is
 specified (see `setup.cfg` for details).
  
 ### Linux
+ - Make sure the requirements above are installed on your host system.
  - `git clone` this repository into your workspace.
- - Run `pip install .` in the Multistrand directory.
+ - Run `pip install .` in the Multistrand source directory.
 
 ### macOS
+ - Make sure the requirements above are installed on your host system.
  - Install `xcode` commandline tools.
  - Install Python through `homebrew`.
  - Follow the Linux installation steps.
@@ -77,14 +79,15 @@ specified (see `setup.cfg` for details).
    `/Library/Python/<python version>/site-packages`.
  
 ### Windows
+ - Make sure the requirements above are installed on your host system.
  - Follow the instructions for installing the latest version of the [Microsoft
    C++ Build Tools](https://wiki.python.org/moin/WindowsCompilers).
  - Follow the Linux installation steps.
  
 ### [Apptainer](https://apptainer.org/) container
  - [Install Apptainer](https://apptainer.org/docs/admin/latest/installation.html).
- - Copy/move `nupack-<version>.zip` into the parent directory of the
-   `multistrand` source tree.
+ - Place `nupack-<version>.zip` into the parent folder of the Multistrand
+   source directory, so that the container build script can unpack and install NUPACK.
  - `$> cd tools`
  - [Build the container](
    https://apptainer.org/docs/user/latest/build_a_container.html):

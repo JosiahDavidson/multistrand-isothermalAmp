@@ -23,7 +23,7 @@ using std::string;
 
 // The bodies for these functions are defined in options.cc, but the
 // actual classes get used across a bunch of the files so they have been
-// seperated to not cause huge recompiles.
+// separated to not cause huge recompiles.
 
 
 class strandList {
@@ -46,7 +46,6 @@ class identList {
   ~identList( void );
 
   // Functions
-  void  make_unique( strandList *strands);
   std::string toString(void);
 
   // public variables.

@@ -6,6 +6,9 @@
 import os, random
 import errno
 from functools import reduce
+from typing import Tuple, List
+
+import numpy as np
 
 
 def concentration_string(concentration):
@@ -172,13 +175,102 @@ def pairType(ids, structs):
     return (tuple(idString), tuple(output))
 
 
-def printTrajectory(opts, timescale=(1e6, "us"), feature=None,
-                    show_seed: bool = False, show_uid: bool = False):
+def normalizeCyclicPermutation(
+    strandkey: List[int], seq: str, dpp: str) -> Tuple[str, str]:
+    """
+    Given the primary and secondary structure of a complex, both encoded as
+    flat strings, return their minimal strand-level cyclic permutation in the
+    same format. The order over cyclic permutations is induced by an order
+    over strands, as defined by `strandkey`.
 
-    seqstring = ""
-    I = 0
-    prev_time = opts.full_trajectory_times[0]
+    Note:
+      This is a purely syntactic transformation, and should leave the physical
+      state unchanged.
+
+      In general, the DPP syntax is equivariant w.r.t. the strand permutation
+      *only* at intra-strand base pairs. Inter-strand base pairs are
+      additionally flipped in orientation if they cross the index of the
+      cyclic permutation.
+
+    Comments:
+      This function is intended for post-processing purposes, such as in
+      `printTrajectory()`. It is semantically equivalent to
+      `StrandOrdering::reorder()` in the C++ simulator, except that the latter
+      is specialised to the strand order of a matching stop complex.
+    """
+    S = len(strandkey)
+    assert S == len(np.unique(strandkey))
+    assert S - 1 == seq.count('+') == dpp.count('+')
+
+    # find minimal cyclic permutation
+    prm_parts = lambda v: lambda p: (v[p:len(v)], v[0:p])
+    prm = lambda v: lambda p: sum(prm_parts(v)(p), start=[])
+    cand = np.atleast_1d(np.argmin(strandkey))
+    argprm = min(np.atleast_1d(np.argmin(strandkey)), key=prm(strandkey))
+
+    # apply cyclic permutation
+    if argprm == 0:
+        # identity
+        n_seq = seq
+        n_dpp = dpp
+    else:
+        # transform primary structure
+        n_seq = '+'.join(prm(seq.split('+'))(argprm))
+        # transform intra-strand secondary structure
+        n_dpp = [list('+'.join(p)) for p in prm_parts(dpp.split('+'))(argprm)]
+        # transform inter-strand secondary structure
+        n_dpp = '+'.join(map(''.join, map(flipInterPB, n_dpp, [True, False])))
+        assert all(n_dpp.count(c) == dpp.count(c) for c in "().+")
+    return n_seq, n_dpp
+
+
+def flipInterPB(dpp: List[str], fw: bool) -> List[str]:
+    """
+    Detect inter-strand paired bases and flip their orientation in the DPP
+    syntax, operating *in-place* and only in the designated direction.
+
+    Used by `normalizeCyclicPermutation()`.
+    """
+    assert all(len(b) == 1 and b in "().+" for b in dpp)
+    intra, n = 0, len(dpp)
+    # recurse right/left on the new strand list's head/tail
+    if fw:
+        (p1, p2), bs = '()', enumerate(dpp)
+    else:
+        (p1, p2), bs = ')(', zip(range(n)[::-1], dpp[::-1])
+    # find inter-strand paired bases with deprecated orientation
+    for i, b in bs:
+        if b == p1:
+            intra += 1
+        elif b == p2:
+            if intra > 0:
+                intra -= 1
+            else:
+                dpp[i] = p1
+    return dpp
+
+
+def printTrajectory(
+    opts, timescale=(1e6, "us"),
+    show_seed: bool=False, show_permutation: bool=False,
+    show_uid: bool=False, feature=None):
+    """
+    Pretty-print the simulation trajectories stored in an `Options` object.
+    The output representation of primary and secondary structures is normalized
+    w.r.t. permutations among complexes and w.r.t. cyclic permutations of
+    strands within each complex, using an ordering over strand lists based on
+    the unique strand IDs.
+
+    Custom output per simulation step, beyond the state seeds and
+    complex/strand permutations, can be added via an argument of type
+    `feature: Callable[[Options, int], str]`.
+    """
+    assert type(opts).__name__ == "Options"
+
+    I, prev_tubeseq, prev_num_cmplx, prev_time = 0, "", 0, 0.0
     width_num_cmplx = len(str(max(map(len, opts.full_trajectory))))
+    strands = opts.strand_names()
+
     for i in range(len(opts.full_trajectory)):
         curr_time = opts.full_trajectory_times[i]
         time = timescale[0] * curr_time
@@ -193,7 +285,6 @@ def printTrajectory(opts, timescale=(1e6, "us"), feature=None,
                 for prev_cmplx in opts.full_trajectory[i-1]:
                     if prev_cmplx in state:
                         state.remove(prev_cmplx)
-
             # print trajectory header
             if I > 0:
                 print(); print()
@@ -211,41 +302,54 @@ def printTrajectory(opts, timescale=(1e6, "us"), feature=None,
             print(width_hdr * "-")
             print(indent_hdr * " " + hdr)
             print(width_hdr * "-")
-        prev_time = curr_time
 
-        # gather state information
-        ids, newseqs, structs, dG, pairTypes = [], [], [], 0.0, []
+        # assemble normalized representation for each complex
+        cids, seqs, structs, dG, pairTypes = [], [], [], 0.0, []
         for cmplx in state:
-            ids.append(str(cmplx.strand_names))
-            # extract the strand sequences in each complex
-            # (joined by "+" for multistranded complexes)
-            newseqs.append(cmplx.sequence)
-            # similarly extract the secondary structures for each complex
-            structs.append(cmplx.structure)
+            sids = [strands[n].id for n in cmplx.strand_names.split(',')]
+            cids.append(sids)
+            sq, st = normalizeCyclicPermutation(
+                sids, cmplx.sequence, cmplx.structure)
+            seqs.append(sq)
+            structs.append(st)
             dG += cmplx.energy
             if show_uid:
                 uniqueID = pairType(cmplx.strand_names, cmplx.structure)
                 pairTypes.append(
                     ''.join(uniqueID[0]) + '_' + ','.join(map(str, uniqueID[1])))
-        # make a space-separated string of complexes, to represent the whole
-        # tube system sequence
-        newseqstring = ' '.join(newseqs)
-        # give the dot-paren secondary structure for the whole test tube
-        tubestruct = ' '.join(structs)
+
+        # normalize the full state representation
+        cids_ = sorted(cids)
+        cixs = [cids_.index(cid) for cid in cids]
+        tubeseq = ' '.join(np.array(seqs)[cixs])
+        tubestruct = ' '.join(np.array(structs)[cixs])
+
+        # print the full state on the next line(s)
+        if show_permutation:
+            # compare original and normalized complex states
+            print(indent_hdr * "-")
+            print(' # ' + width_num_cmplx * ' ' +
+                  ' '.join((cmplx.sequence for cmplx in state)))
+            print(f" {'#':<{width_num_cmplx}}  " +
+                  f"{' '.join((cmplx.structure for cmplx in state))}")
+            print(indent_hdr * "-")
+        if i == 0 or tubeseq != prev_tubeseq:
+            # display strand order when it changes
+            print((width_num_cmplx + 3) * ' ' + tubeseq)
         if show_seed:
             seed = ",".join(f"{s:>5d}" for s in state[0].seed)
         if show_uid:
-            identities = '+'.join(pairTypes)
-
-        if newseqstring != seqstring:
-            # because strand order can change upon association or dissociation,
-            # print it when it changes
-            print((width_num_cmplx + 3) * ' ' + newseqstring)
-            seqstring = newseqstring
-
+            identities = '+'.join(pairTypes[cixs])
         print(
             f"[{len(state):>{width_num_cmplx}}] " +
             f"{tubestruct} | {time:0<#9.4g} |   {dG:>+{width_dG-5}.3f}   " +
-            (f" | ({seed})" if show_seed else "") +
-            (f" | {feature(opts, i)}" if feature is not None else "") +
-            (f" | uID='{identities}'" if show_uid else ""))
+            ("" if not show_seed else f" | ({seed})") +
+            ("" if feature is None else f" | {feature(opts, i)}") +
+            ("" if not show_uid else f" | uID='{identities}'"))
+
+        if opts.output_interval == 1 and tubeseq != prev_tubeseq:
+            # if `normalizeCyclicPermutation()` is implemented correctly,
+            # then this should happen *only* upon association/dissociation
+            assert prev_num_cmplx != len(state)
+        prev_time = curr_time
+        prev_tubeseq, prev_num_cmplx = tubeseq, len(state)

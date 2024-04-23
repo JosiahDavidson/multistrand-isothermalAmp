@@ -40,14 +40,14 @@ def hybridizationString(seq):
     N = len(seq)
     output = []
 
-    """ start with the seperated, zero-bp state """
+    """ start with the separated, zero-bp state """
     dotparen1 = "."*N + "+" + "."*N
 
     complex0 = makeComplex([seq], "."*N, [ids[0]])
     complex1 = makeComplex([seqComplement(seq)], "."*N, [ids[1]])
-    seperated = [complex0, complex1]
+    separated = [complex0, complex1]
 
-    output.append(seperated)
+    output.append(separated)
 
     """ 
         bps is the number of basepairs between the strands
@@ -128,9 +128,9 @@ def threewaybmString(lefttoe, displace, righttoe):
     """ start with the separated, zero-bp state """
     complex0 = makeComplex([invaderSq], "."*(lT + N + rT), [invaderID])
     complex1 = makeComplex([incumbentSq, substrateSq], "(" * N + "+" + "."* lT + ")" * N + "." *rT, [incumbentID, substrateID])
-    seperated = [complex0, complex1]
+    separated = [complex0, complex1]
     
-    output.append(seperated)
+    output.append(separated)
 
     ''' left invasion toehold '''
     seqsL = [invaderSq, substrateSq, incumbentSq]

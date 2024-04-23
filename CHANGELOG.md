@@ -33,6 +33,8 @@
   `Options.free_sim_system()`.
 - Enabled deterministic trajectory replays starting mid-way, using
   `Options.restart_from_checkpoint()`.
+- Improved `utility.printTrajectory()`, which is now normalized w.r.t.
+  strand-level cyclic permutations and able to report PRNG seeds.
 - Consolidated and extended `SimSystem.stateInfo()` (formerly `initialInfo()`)
   to accept states other than the initial state, to list both uni- and
   bimolecular moves, to print the adjacent secondary structure for each move,
@@ -60,12 +62,13 @@
 - Introduced `const` expressions for better compile time optimization.
 - Introduced `BaseType`, which replaces the previous `char` encoding of primary
   structure, in order to improve maintainability.
+- Enforced a global ordering over strand objects, by preventing `Strand.id` and
+  `ComplementaryStrand.id` from overlapping.
 - Stopped computing transition types when they are not used in the kinetic model
   (`rate_method != 'Arrhenius'`).
 - Added `SimTimer.seed` as an external buffer for the Libc PRNG, in order to
   track the full random variable state during trajectory sampling.
-- Prevented repeated intermediate prints when using `multiprocess` in
-  `MergeSim`.
+- Prevented repeated intermediate prints when using `multiprocess` in `MergeSim`.
 - Cleaned up print statements.
 - Removed several obsolete code sections.
 

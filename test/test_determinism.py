@@ -15,46 +15,57 @@ from multistrand.system import SimSystem
 from multistrand.concurrent import MergeSim
 
 
+example_states = [
+    ("GTGGGT", "ACCGCACGTCACTCACCTCG", "TTT",
+     "..(.((.....)).).....((((((+))))))((((((((((((((((((((+))))))))))))))))))))")
+]
+
+
 @pytest.mark.parametrize(
     "rate_model",
     ["JSMetropolis25", "JSMetropolis37", "JSKawasaki25", "JSKawasaki37",
      "DNA23Metropolis", "DNA23Arrhenius"])
 class Test_Determinism:
 
+    @pytest.mark.parametrize("state_idx", [0])
     @pytest.mark.parametrize(
-        "toehold_seq, bm_design_B, toehold_extra, structure",
-        [("GTGGGT", "ACCGCACGTCACTCACCTCG", "TTT",
-          "..(.((.....)).).....((((((+))))))((((((((((((((((((((+))))))))))))))))))))")
-        ])
-    @pytest.mark.parametrize("seed", list(np.random.randint(1 << 31, size=5)))
-    def test_trajectories(cls, rate_model: str,
-                          toehold_seq: str, bm_design_B: str, toehold_extra: str,
-                          structure: str, seed: int) -> None:
+        "seed", list(np.random.randint(1 << 31, size=5)))
+    def test_trajectories(
+        cls, rate_model: str,
+        state_idx: int, seed: int | Tuple[int, int, int],
+        capfd: pytest.CaptureFixture) -> None:
         """
         Compare multiple trajectories from identically configured Multistrand
         simulations, first replaying from the start (with sparse output),
         and then replaying from a checkpoint near the end (with full output).
         """
+        # output mode
+        runtest = capfd is not None
+
         # time stepping
         intvl_full, intvl_tail = int(1e2), 1
-        intvl_idx, num_intvl = -5, 3
+        intvl_idx, num_intvl = -100, 3
 
         # build initial state
+        toehold_seq, bm_design, _, structure = example_states[state_idx]
         toehold = Domain(
             name="toehold", sequence=toehold_seq, length=len(toehold_seq))
-        branch_migration_B = Domain(
-            name="bm_B", sequence=bm_design_B, seq_length=len(bm_design_B))
-        substrate_B = toehold + branch_migration_B
-        incumbent_B = Strand(name="incumbent", domains=[branch_migration_B.C])
-        incoming_B = substrate_B.C
-        start_complex = Complex(
-            strands=[incoming_B, substrate_B, incumbent_B], structure=structure)
+        branch_migration = Domain(
+            name="bm_B", sequence=bm_design, seq_length=len(bm_design))
+        substrate = toehold + branch_migration
+        incumbent = Strand(name="incumbent", domains=[branch_migration.C])
+        incoming = substrate.C
+        start_complex = Complex(strands=[incoming, substrate, incumbent],
+                                structure=structure)
 
         # simulate full trajectory twice
         o_full = cls.create_config(rate_model, [start_complex], seed)
         o_full.output_interval = intvl_full
-        seeds1, structs1, energies1, times1, end1 = cls.simulate(o_full, False)
-        seeds2, structs2, energies2, times2, end2 = cls.simulate(o_full, False)
+        seeds1, structs1, energies1, times1, end1 = cls.simulate(o_full, True)
+        capt1 = capfd.readouterr() if runtest else None
+        seeds2, structs2, energies2, times2, end2 = cls.simulate(o_full, runtest)
+        capt2 = capfd.readouterr() if runtest else None
+        assert len(seeds1) == len(times1) == len(seeds2) == len(times2)
 
         # compare trajectories (full / full)
         assert (seeds1 == seeds2).all()
@@ -63,14 +74,20 @@ class Test_Determinism:
         assert (times1 == times2).all()
         assert end1 == end2
         assert len(end1) > 0
+        if runtest:
+            assert capt1.out == capt2.out
 
         # replay trajectory tail twice
+        intvl_idx = max(0, len(structs1) + intvl_idx)
         o_tail = o_full.restart_from_checkpoint(intvl_idx)
         del o_full
         o_tail.output_interval = intvl_tail
-        seeds3, structs3, energies3, times3, end3 = cls.simulate(o_tail, False)
-        seeds4, structs4, energies4, times4, end4 = cls.simulate(o_tail, False)
+        seeds3, structs3, energies3, times3, end3 = cls.simulate(o_tail, runtest)
+        capt3 = capfd.readouterr() if runtest else None
+        seeds4, structs4, energies4, times4, end4 = cls.simulate(o_tail, runtest)
+        capt4 = capfd.readouterr() if runtest else None
         del o_tail
+        assert len(seeds3) == len(times3) == len(seeds4) == len(times4)
 
         # compare trajectories (tail / tail)
         assert (seeds3 == seeds4).all()
@@ -79,6 +96,8 @@ class Test_Determinism:
         assert (times3 == times4).all()
         assert end3 == end4
         assert len(end3) > 0
+        if runtest:
+            assert capt3.out == capt4.out
 
         # compare trajectories (full / tail)
         I_full = np.s_[intvl_idx : intvl_idx + num_intvl : 1]
@@ -97,20 +116,24 @@ class Test_Determinism:
 
     @staticmethod
     def create_config(
-        rate_model: str, start_state: List[Complex], seed: int) -> Options:
+        rate_model: str, start_state: List[Complex],
+        seed: int | Tuple[int, int, int]) -> Options:
         opt = Options()
         opt.simulation_mode = Literals.trajectory
         opt.temperature = 37.0
         opt.dangles = 1
         opt.start_state = start_state
-        opt.initial_seed = seed
+        if isinstance(seed, (int, np.integer)):
+            opt.initial_seed = seed
+        else:
+            opt.state_seed = seed
         opt.num_simulations = 1
         opt.simulation_time = 5e-4
         getattr(opt, rate_model)()
         return opt
 
     @classmethod
-    def simulate(cls, opt: Options, verbose: bool) -> Tuple[np.ndarray,...]:
+    def simulate(cls, opt: Options, verbose: bool=False) -> Tuple[np.ndarray,...]:
         sys = SimSystem(opt)
         sys.start()
         if verbose:
@@ -183,11 +206,13 @@ class Test_Determinism:
 
 
 if __name__ == "__main__":
-    toehold_seq = "GTGGGT"
-    bm_design_B = "ACCGCACGTCACTCACCTCG"
-    toehold_extra = "TTT"
-    structure = "..(.((.....)).).....((((((+))))))((((((((((((((((((((+))))))))))))))))))))"
-    seed = np.random.randint(1 << 31)
-    Test_Determinism().test_trajectories(
-        "DNA23Arrhenius", toehold_seq, bm_design_B, toehold_extra, structure,
-        seed)
+    from sys import argv
+
+    if len(argv) == 2:
+        rate_model = argv[1]
+    else:
+        # rate_model = "JSMetropolis37"
+        # rate_model = "DNA23Metropolis"
+        rate_model = "DNA23Arrhenius"
+    seed = int(np.random.randint(1 << 31))
+    Test_Determinism().test_trajectories(rate_model, 0, seed, None)

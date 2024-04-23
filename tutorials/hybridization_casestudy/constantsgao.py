@@ -193,12 +193,12 @@ class analysisFactory:
 
     def selectTrajectories(self, clause, results, trajectories, times):
         
-        # # The trajectories and end times are not seperated by the results.tag. This is a helper function to return only those trajectories and times for which
+        # # The trajectories and end times are not separated by the results.tag. This is a helper function to return only those trajectories and times for which
         # # the results.tag == clause
         outTraj = list()
         outTime = list()
         
-        # # Refactoring: outTraj, outTime are now lists of lists, each entry is a seperate trajectory.
+        # # Refactoring: outTraj, outTime are now lists of lists, each entry is a separate trajectory.
         pathCounter = -1
         pathSelected = False  
         selectedCounter = 0

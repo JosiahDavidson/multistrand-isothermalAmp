@@ -55,7 +55,7 @@ public:
 	//
 	// 11/24 JMS: I think I need to add a strand class in order to cleanly
 	// handle disassociation events for single strands. Disassociations that
-	// result in two seperate complexes needs to be handled as well, and
+	// result in two separate complexes needs to be handled as well, and
 	// efficiently. More thought required.
 	//
 	// 11/25 JMS: Possibly the best thing to do is have the complex which

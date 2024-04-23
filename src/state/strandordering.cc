@@ -278,7 +278,6 @@ StrandOrdering* StrandOrdering::joinOrdering(StrandOrdering *first, StrandOrderi
 	return first;
 }
 
-// StrandOrdering::reorder( OpenLoop *index )
 
 void StrandOrdering::reorder(OpenLoop *index) {
 	orderingList *traverse = first, *traverse_second = NULL;
@@ -338,12 +337,6 @@ void StrandOrdering::reorder(OpenLoop *index) {
 	}
 }
 
-/*
-
-
- OpenLoop *StrandOrdering::checkIDList( class identlist * stoplist, int id_count )
-
- */
 
 OpenLoop *StrandOrdering::checkIDList(class identList * stoplist, int id_count) {
 	orderingList *traverse = first;
@@ -404,7 +397,7 @@ int StrandOrdering::checkIDBound(char *id) {
 
 // -- Returns a flat representation of the strand ordering's sequence, structure and coded sequence. Used by SComplex::generateLoops() to re-use the old generate loops code.
 // Note that the returned arrays are allocated here, but expected to be deallocated by the calling function.
-// Sequence seperation is indicated by a single '_' character.The base sequence is seperated by invalid
+// Sequence seperation is indicated by a single '_' character.The base sequence is separated by invalid
 void StrandOrdering::generateFlatSequence(char **sequence, char **structure,
 										  BaseType **base_sequence, bool debug) {
 	int totallength = 0;

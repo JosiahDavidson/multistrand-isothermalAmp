@@ -50,7 +50,7 @@ class Test_StateInfo:
 
     @classmethod
     def compare_stateInfo(cls, opt: Options, kinetics: str,
-                            capfd: Optional[pytest.CaptureFixture]):
+                          capfd: Optional[pytest.CaptureFixture]):
         """
         Test helper. Call with `capfd=None` to debug without Pytest.
         """

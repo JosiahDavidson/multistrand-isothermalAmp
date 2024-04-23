@@ -42,7 +42,8 @@ class Strand:
                 self.domain_list = []
 
         self.id = Strand.unique_id
-        Strand.unique_id += 1
+        # make space for the corresponding `ComplementaryStrand.unique_id`
+        Strand.unique_id += 2
 
     def __eq__(self, other: "Strand"):
         """
@@ -202,13 +203,10 @@ class ComplementaryStrand( Strand ):
                   'C':'G',
                   'A':'T',
                   'T':'A'}
-    
-    unique_id = 0
 
     def __init__(self, complemented_strand):
-        self.id = ComplementaryStrand.unique_id
-        ComplementaryStrand.unique_id += 1
         self._strand = complemented_strand
+        self.id = self._strand.id + 1
         self._sequence: str
 
     def __eq__(self, other: "ComplementaryStrand"):

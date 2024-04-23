@@ -21,13 +21,22 @@ SimTimer::SimTimer(SimOptions& myOptions) {
 	setPRNG();
 }
 
+SimTimer::~SimTimer() {
+
+	writePRNG();
+	simOptions = NULL;
+
+}
+
 // Populate `SimTimer.seed` from the Libc PRNG buffer, which was initialised
 // earlier by `SimulationSystem.InitializePRNG()`.
 void SimTimer::setPRNG() {
 
 	readPRNG(&seed);
 
-	// printPRNG(&seed);
+	if (simOptions->debug) {
+		cout << "setPRNG: "; printPRNG(&seed);
+	}
 }
 
 // Read out the Libc internal PRNG buffer.
@@ -45,6 +54,9 @@ void SimTimer::readPRNG(seed48_t *prng) {
 // instance, in particular for `SimulationSystem::generateNextRandom()`.
 void SimTimer::writePRNG() {
 
+	if (simOptions->debug) {
+		cout << "writePRNG: "; printPRNG(&seed);
+	}
 	seed48(seed);
 }
 
@@ -69,7 +81,6 @@ void SimTimer::advanceTime() {
 	rchoice = rate * erand48(seed);
 	stime += log(1. / (1.0 - erand48(seed))) / rate;
 
-	// printPRNG(&seed);
 }
 
 // returns TRUE if this transition needs to be executed.

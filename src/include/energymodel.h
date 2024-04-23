@@ -216,7 +216,7 @@ private:
 	void processOptions();
 	FILE* openFile(string&);
 
-	// FD jan 2018: helper functions, now seperated out
+	// FD jan 2018: helper functions, now separated out
 	double HairpinEnergy(BaseType *seq, int size, hairpin_energies&);
 	double InteriorEnergy(BaseType *seq1, BaseType *seq2, int size1, int size2, internal_energies& internal);
 	double BulgeEnergy(int i, int j, int p, int q, int bulgesize, array<double,31>, array<array<double, PAIRS_NUPACK>, PAIRS_NUPACK> );

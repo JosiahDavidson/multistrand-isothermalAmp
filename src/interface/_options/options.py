@@ -14,6 +14,8 @@ from typing import List, Optional
 import os.path
 import importlib.resources
 
+import numpy as np
+
 from .interface import Interface
 from ..utils.thermo import C2K
 from ..objects import Strand, Complex, StopCondition
@@ -482,6 +484,12 @@ class Options:
         opt.state_seed = cp_state_seed
         return opt
 
+    def strand_names(self):
+        names = {f"{s.id}:{s.name}": s
+                 for s in chain(*(c.strand_list for c in self.start_state))}
+        assert len(names) == len(np.unique([s.id for s in names.values()]))
+        return names
+
     def checkpoint_state(self, checkpoint: List[TrajLogComplex]):
         """
         Reconstruct a new `Options.start_state` representation from a
@@ -489,10 +497,9 @@ class Options:
         `Options.restart_from_checkpoint()`.
         """
         assert all(isinstance(cmplx, TrajLogComplex) for cmplx in checkpoint)
-        strands = {f"{s.id}:{s.name}": s
-                   for s in chain(*(c.strand_list for c in self.start_state))}
+        strand_names = self.strand_names()
         return [
-            Complex(strands=[strands[n]
+            Complex(strands=[strand_names[n]
                              for n in cmplx.strand_names.split(',')],
                     structure=cmplx.structure)
             # the input complex list is reversed on the way to `SComplexList`

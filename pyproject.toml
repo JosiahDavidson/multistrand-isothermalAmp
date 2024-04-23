@@ -11,8 +11,9 @@ build-backend = "setuptools.build_meta"
 # unit tests ===================================================================
 
 [tool.pytest.ini_options]
-minversion = 7.3
-addopts = "-v -r a -n auto"
+minversion = 8.0
+addopts = "-v -r a --showlocals -n auto --dist worksteal"
+xfail_strict = true
 testpaths = ["test"]
 python_files = ["test*.py", "Test*.py"]
 norecursedirs = [".git", ".cache", ".tox", ".ropeproject", "build"]

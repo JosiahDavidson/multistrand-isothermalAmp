@@ -260,8 +260,6 @@ void SimulationSystem::SimulationLoop_Standard(void) {
 		simOptions->stopResultTime(trajectory_seed, myTimer.maxsimtime);
 	}
 
-	// required for `SimulationSystem::generateNextRandom()`
-	myTimer.writePRNG();
 	current_state_seed = NULL;
 }
 
@@ -339,8 +337,6 @@ void SimulationSystem::SimulationLoop_Trajectory() {
 	if (first != NULL)
 		delete first;
 
-	// required for `SimulationSystem::generateNextRandom()`
-	myTimer.writePRNG();
 	current_state_seed = NULL;
 }
 
@@ -447,8 +443,6 @@ void SimulationSystem::SimulationLoop_Transition(void) {
 		simOptions->stopResultTime(trajectory_seed, myTimer.maxsimtime);
 	}
 
-	// required for `SimulationSystem::generateNextRandom()`
-	myTimer.writePRNG();
 	current_state_seed = NULL;
 }
 
@@ -561,8 +555,6 @@ void SimulationSystem::SimulationLoop_FirstStep(void) {
 		simOptions->stopResultFirstStep(trajectory_seed, myTimer.stime, frate, result_type::STR_TIMEOUT.c_str());
 	}
 
-	// required for `SimulationSystem::generateNextRandom()`
-	myTimer.writePRNG();
 	current_state_seed = NULL;
 }
 
@@ -722,11 +714,26 @@ void SimulationSystem::InitializePRNG() {
 
 void SimulationSystem::generateNextRandom(void) {
 
-	// assumes that `myTimer.writePRNG()` was called at the end of the
-	// current trajectory, before deallocating `myTimer`
+	seed48_t tmp_seed;
+	if (simOptions->debug) {
+		cout << "generateNextRandom:" << endl;
+		SimTimer::readPRNG(&tmp_seed);
+		cout << "  before: "; SimTimer::printPRNG(&tmp_seed);
+	}
+
+	// Generate the initial seed for the next trajectory from the last
+	// PRNG state of the current trajectory. Assumes that `myTimer.writePRNG()`
+	// was called in `myTimer.~SimTimer()` at the end of the current trajectory.
 	trajectory_seed = lrand48();
+
+	// initialize the Libc internal PRNG buffer
 	srand48(trajectory_seed);
 	current_state_seed = NULL;
+
+	if (simOptions->debug) {
+		SimTimer::readPRNG(&tmp_seed);
+		cout << "  after: "; SimTimer::printPRNG(&tmp_seed);
+	}
 }
 
 PyObject *SimulationSystem::calculateEnergy(PyObject *start_state, int typeflag) {

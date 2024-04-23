@@ -64,7 +64,7 @@ public:
 	bool useTrajSeed();
 	bool useStateSeed();
 	long getTrajSeed();
-	unsigned short (* getStateSeed())[3];
+	seed48_t* getStateSeed();
 	EnergyOptions* getEnergyOptions();
 	long getSimulationMode();
 	long getSimulationCount();

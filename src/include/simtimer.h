@@ -14,6 +14,7 @@ class SimTimer {
 
 public:
 	SimTimer(SimOptions& myOptions);
+	~SimTimer();
 
 	void advanceTime();
 	bool wouldBeHit(const double);

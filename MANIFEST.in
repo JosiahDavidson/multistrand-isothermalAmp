@@ -2,7 +2,7 @@ include *.md MANIFEST.in
 
 recursive-include src *.h *.cc *.py
 recursive-include test *.py *.txt
-recursive-include tools *.def
+recursive-include tools *.def *.awk
 
 recursive-include tutorials *.py *.ipynb *.sh *.md *.xlsx *.svg
 include doc/Makefile

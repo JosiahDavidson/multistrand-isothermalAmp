@@ -205,7 +205,6 @@ def normalizeCyclicPermutation(
     # find minimal cyclic permutation
     prm_parts = lambda v: lambda p: (v[p:len(v)], v[0:p])
     prm = lambda v: lambda p: sum(prm_parts(v)(p), start=[])
-    cand = np.atleast_1d(np.argmin(strandkey))
     argprm = min(np.atleast_1d(np.argmin(strandkey)), key=prm(strandkey))
 
     # apply cyclic permutation

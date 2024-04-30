@@ -3,14 +3,14 @@
 # The Multistrand Team (help@multistrand.org)
 
 Bootstrap: docker
-From: bitnami/minideb:bullseye
+From: bitnami/minideb:bookworm
 
 %help
 
     This Apptainer container definition installs NUPACK 4.0.1 [1] and a debug
     build of Multistrand 2.2 [2], assuming that both source trees are available
-    on the host system (see %files section). It uses GCC 10, GDB 13.2, Valgrind
-    3.16 and a debug build of Python 3.11, and requires Apptainer 1.2+ to build.
+    on the host system (see %files section). It uses GCC 12, GDB 14.2, Valgrind
+    3.19 and a debug build of Python 3.12, and requires Apptainer 1.2+ to build.
     See [3] for a tutorial on using GDB for the Python runtime and its C
     extensions, and similarly [4] for Valgrind.
 
@@ -22,13 +22,13 @@ From: bitnami/minideb:bullseye
 %arguments
 
     # version config
-    NUPACK_VER=4.0.1.8
-    CPY_VER=3.11
-    CPY_TAG=v{{CPY_VER}}.5
-    GDB_VER=13.2
+    NUPACK_VER=4.0.1.11
+    CPY_VER=3.12
+    CPY_TAG=4
+    GDB_VER=14.2
 
     # compiler config
-    NJOBS=12
+    NJOBS=8
 
 %files
 
@@ -70,7 +70,7 @@ From: bitnami/minideb:bullseye
     # install common system utils
     # (`install_packages` wrapper for APT provided by Bitnami base image)
     install_packages \
-        sudo ca-certificates build-essential wget unzip tar git \
+        sudo ca-certificates build-essential pkgconf wget unzip tar git \
         tmux time less tree gawk vim nano valgrind
 
     # info
@@ -79,8 +79,8 @@ From: bitnami/minideb:bullseye
     # install Python from source, configured with PDB & Valgrind
     install_packages \
         libbz2-dev libffi-dev libssl-dev zlib1g-dev liblzma-dev \
-        libsqlite3-dev libreadline-dev libgmp-dev
-    echo "\n\n\n" && git clone -b {{CPY_TAG}} --depth 1 \
+        libsqlite3-dev libreadline-dev libgmp-dev libmpfr-dev
+    echo "\n\n\n" && git clone -b v{{CPY_VER}}.{{CPY_TAG}} --depth 1 \
         https://github.com/python/cpython.git ${CPY_SRC} && cd ${CPY_SRC} && \
         ./configure --with-pydebug --without-pymalloc --with-valgrind && \
         CFLAGS='-g3' make -s -j{{NJOBS}} && sudo make install
@@ -100,7 +100,7 @@ From: bitnami/minideb:bullseye
     # auto-import Python intrinsics in GDB
     sudo cp ${CPY_SRC}/Tools/gdb/libpython.py ${GDB_DATA}/python/gdb/function
 
-    # install common Python utils
+    # install Python utils
     pip3 install ipython
 
     # install NUPACK

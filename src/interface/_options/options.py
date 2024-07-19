@@ -122,14 +122,17 @@ class Options:
     The main wrapper for controlling a Multistrand simulation. Has an interface
     for returning results.
     """
-    RateMethodToString = ["None", "Metropolis", "Kawasaki", "Arrhenius"]
     dangleToString = ["None", "Some", "All"]
+    RateMethodToString = ["None", "Metropolis", "Kawasaki", "Arrhenius"]
 
     # Parameter type. Vienna is depreciated.
     viennaModel = 0
     nupackModel = 1
     parameterTypeToString = ["Vienna", "Nupack" ]
     substrateToString = ["Invalid", "RNA", "DNA"]
+    arrheniusParams = [
+        f"{feature}{eqcls}" for feature in ["lnA", "E"] for eqcls in
+        "Stack Loop End StackLoop StackEnd LoopEnd StackStack".split()]
 
     # translation
     simulationMode = {"Normal"    :         Literals.first_passage_time,
@@ -157,10 +160,10 @@ class Options:
 
         Optional Arguments:
         -------------------
-        initial_seed: int            -- PRNG seed at the start of the first trajectory.
-        state_seed: (int,int,int)    -- full PRNG buffer to restart a trajectory mid-way.
-        simulation_start_time: float -- Initial time point (in combination with `state_seed`).
-                                        
+        initial_seed: int             -- PRNG seed at the start of the first trajectory.
+        state_seed: (int,int,int)     -- full PRNG buffer to restart a trajectory mid-way.
+        simulation_start_time: float  -- Initial time point (in combination with `state_seed`).
+
         If rate_method == 'Arrhenius', please also set:
             lnAEnd, lnALoop, lnAStack, lnAStackStack, lnALoopEnd, lnAStackEnd,
             lnAStackLoop, EEnd, ELoop, EStack, EStackStack, ELoopEnd, EStackEnd, EStackLoop,
@@ -173,7 +176,7 @@ class Options:
         # ->Members new to the python implementation     #
         #                                                #
         ##################################################
-        
+
         """ Pipe to let Multistrand know the version from ../__init__.py """
         self.ms_version = float(__version__)
 
@@ -203,7 +206,7 @@ class Options:
         self.verbosity = 1
         """ Indicates how much output will be generated for each trajectory run.
         Value = 0:  No end state reported, no warnings for timeout and nonitial steps
-        Value = 1:  No end states reports, warnings active   
+        Value = 1:  No end states reports, warnings active
         Value = 2:  Warnings and end states reports to stdout
         Value = 3:  Print debugging information from SimulationSystem to stdout
         """
@@ -277,7 +280,7 @@ class Options:
 
         self._dangles: int = Literals.dangles_some
         """ Dangles options for the energy model.
-        
+
         None [0]: Do not include any dangles terms in the energy model.
         Some [1]: Some dangles terms.  (Nupack Default)
         All  [2]: Include all dangles terms, including odd overlapping ones.
@@ -292,7 +295,7 @@ class Options:
         """
 
         self.substrate_type: int = Literals.substrateDNA
-        """ What substrate's parameter files to use. 
+        """ What substrate's parameter files to use.
 
         Invalid [0]: Indicates we should not auto-search for a param file.
         RNA     [1]: RNA parameters are available from Nupack.
@@ -322,34 +325,23 @@ class Options:
         self.name_dict = {}
         """ Dictionary from strand name to a list of unique strand objects
         having that name.
-        
+
         Type         Default
         dict         {}
-        
-        Modified when start state is added. Used as a lookup when stop states 
+
+        Modified when start state is added. Used as a lookup when stop states
         are added.
         """
 
-        self.lnAEnd = -0.1
-        self.lnALoop = -0.1
-        self.lnAStack = -0.1
-        self.lnAStackStack = -0.1
-        self.lnALoopEnd = -0.1
-        self.lnAStackEnd = -0.1
-        self.lnAStackLoop = -0.1
-        self.EEnd = -0.1
-        self.ELoop = -0.1
-        self.EStack = -0.1
-        self.EStackStack = -0.1
-        self.ELoopEnd = -0.1
-        self.EStackEnd = -0.1
-        self.EStackLoop = -0.1
+        # allocate Arrhenius model parameters
+        for par in self.arrheniusParams:
+            setattr(self, par, -0.1)
 
         """ These are undocumented adjustments to the energy model """
         self.dSA = -0.0
         self.dHA = -0.0
 
-        """ 
+        """
         Buffer conditions
         """
         self.sodium = 1.0
@@ -367,62 +359,62 @@ class Options:
 
         self.stop_count = 0
         """ The number of stop states. Equivalent to 'len(self.stop_conditions)'.
-        
+
         Type         Default
         int          0
-        
-        Incremented automatically when a stop state is added. Should not be 
+
+        Incremented automatically when a stop state is added. Should not be
         modified externally.
         """
 
         self.output_time = -1.0
-        """ The amount of time (in seconds) to wait between outputs of 
+        """ The amount of time (in seconds) to wait between outputs of
         trajectory information.
-        
+
         Type         Default
         float        -1.0
-        
+
         A value of -1.0 corresponds to not basing outputs on output_time
-        (but perhaps outputting based on some other condition). A value of 0 
+        (but perhaps outputting based on some other condition). A value of 0
         means output as often as possible.
         """
 
         self._output_interval: int = -1
         """ The number of states between outputs of trajectory information.
-        
+
         Type         Default
         int          -1
-        
+
         A value of -1 corresponds to not basing outputs on output_interval
-        (but perhaps outputting based on some other condition). A value of 1 
+        (but perhaps outputting based on some other condition). A value of 1
         means output every state, 2 means every other state, and so on.
         """
 
         self.current_interval = 0
         """ Current value of output state counter.
-        
+
         Type         Default
         int          0
-        
-        When current_interval is equal to output_interval, the output state is 
-        True, and otherwise the output state is False. This is modified by 
+
+        When current_interval is equal to output_interval, the output state is
+        True, and otherwise the output state is False. This is modified by
         increment_output_state, and probably shouldn't be used externally."""
-        
+
         self.output_state = False
         """ Indicates whether output should be reported.
-        
+
         Type         Default
         boolean      False
-        
-        Value should be True if self.current_interval == self.output_interval 
-        and False otherwise.        
+
+        Value should be True if self.current_interval == self.output_interval
+        and False otherwise.
         """
 
         self.interface = Interface()
 
         ##############################
         #
-        # End of __init__: call the keyword hook fn. 
+        # End of __init__: call the keyword hook fn.
         #
         ##############################
 
@@ -539,21 +531,14 @@ class Options:
             other.start_state, other.stop_conditions,
             other.output_time, other.output_interval, other.output_state,
         ) and (
-            True if self.rate_method != Literals.arrhenius else (
-                self.lnAStack, self.EStack, self.lnALoop, self.ELoop,
-                self.lnAEnd, self.EEnd, self.lnAStackLoop, self.EStackLoop,
-                self.lnAStackEnd, self.EStackEnd, self.lnALoopEnd, self.ELoopEnd,
-                self.lnAStackStack, self.EStackStack,
-            ) == (
-                other.lnAStack, other.EStack, other.lnALoop, other.ELoop,
-                other.lnAEnd, other.EEnd, other.lnAStackLoop, other.EStackLoop,
-                other.lnAStackEnd, other.EStackEnd, other.lnALoopEnd, other.ELoopEnd,
-                other.lnAStackStack, other.EStackStack,
-            ))
+            self.rate_method != Literals.arrhenius or
+            all(getattr(self, par) == getattr(other, par)
+                for par in self.arrheniusParams)
+        )
 
     def legacyRates(self):
         warningmsg = "Warning! rate_scaling is set, enabling support for legacy code. Now setting rate defaults for "
-                
+
         if self.temperature == 298.15 and self.rate_method == Literals.kawasaki:
             warningmsg += "Kawasaki 25 C"
             self.JSKawasaki25()
@@ -572,45 +557,51 @@ class Options:
 
         print(warningmsg)
         self.rate_scaling = None
-        
-    # FD, May 5th 2017
-    # Supplying rate options for Metropolis and Kawasaki methods,
-    # all using the dangles = some option. Also:  one general default,
-    # and one setting for Metropolis rates derived for DNA23.
-    
+
     def JSDefault(self):
-        """ Default rates (Kawasaki at 37 degree Celcius) from Joseph Schaeffer's thesis  """
+        """
+        Default rates (Kawasaki at 37 degree Celcius) from Joseph Schaeffer's
+        thesis.
+        """
         self.JSKawasaki37()
-    
+
     def JSMetropolis25(self):
-        """ Default rates for Metropolis at 25 degree Celcius, from Joseph Schaeffer's thesis
+        """
+        Default rates for Metropolis at 25 degree Celcius, from Joseph
+        Schaeffer's thesis.
         """
         self.substrate_type = Literals.substrateDNA
         self.rate_method = Literals.metropolis
 
         self.unimolecular_scaling = 4.4e8
         self.bimolecular_scaling = 1.26e6
-    
+
     def JSKawasaki25(self):
-        """ Default rates for Kawasaki at 25 degree Celcius, from Joseph Schaeffer's thesis
+        """
+        Default rates for Kawasaki at 25 degree Celcius, from Joseph Schaeffer's
+        thesis.
         """
         self.substrate_type = Literals.substrateDNA
         self.rate_method = Literals.kawasaki
 
         self.unimolecular_scaling = 6.1e7
         self.bimolecular_scaling = 1.29e6
-    
+
     def JSKawasaki37(self):
-        """ Default rates for Kawasaki at 37 degree Celcius, from Joseph Schaeffer's thesis
+        """
+        Default rates for Kawasaki at 37 degree Celcius, from Joseph Schaeffer's
+        thesis.
         """
         self.substrate_type = Literals.substrateDNA
         self.rate_method = Literals.kawasaki
 
         self.unimolecular_scaling = 1.5e8
         self.bimolecular_scaling = 1.38e6
-    
+
     def JSMetropolis37(self):
-        """ Default rates for Metropolis at 37 degree Celcius, from Joseph Schaeffer's thesis
+        """
+        Default rates for Metropolis at 37 degree Celcius, from Joseph
+        Schaeffer's thesis.
         """
         self.substrate_type = Literals.substrateDNA
         self.rate_method = Literals.metropolis
@@ -619,12 +610,13 @@ class Options:
         self.bimolecular_scaling = 1.40e6
 
     def DNA23Metropolis(self):
-        """ 
-        Parameters for Metropolis at 25 degree Celcius, from the DNA23 conference (55th walker)
+        """
+        Parameters for Metropolis at 25 degree Celcius, from the DNA23
+        conference (55th walker).
 
         Reference:
         ----------
-        Zolaktaf, Sedigheh, Frits Dannenberg, Xander Rudelis, Anne Condon,
+        Sedigheh Zolaktaf, Frits Dannenberg, Xander Rudelis, Anne Condon,
         Joseph M. Schaeffer, Mark Schmidt, Chris Thachuk, and Erik Winfree.
         2017. ‘Inferring Parameters for an Elementary Step Model of DNA
         Structure Kinetics with Locally Context-Dependent Arrhenius Rates’. In
@@ -635,14 +627,16 @@ class Options:
         self.substrate_type = Literals.substrateDNA
         self.rate_method = Literals.metropolis
 
-        self.unimolecular_scaling = 2.41686715e+06
-        self.bimolecular_scaling = 8.01171383e+05
+        self.unimolecular_scaling = 2.41686715e+6
+        self.bimolecular_scaling = 8.01171383e+5
 
     def DNA23Arrhenius(self):
         """
+        Arrhenius model parameters presented at the DNA23 conference.
+
         Reference:
         ----------
-        Zolaktaf, Sedigheh, Frits Dannenberg, Xander Rudelis, Anne Condon,
+        Sedigheh Zolaktaf, Frits Dannenberg, Xander Rudelis, Anne Condon,
         Joseph M. Schaeffer, Mark Schmidt, Chris Thachuk, and Erik Winfree.
         2017. ‘Inferring Parameters for an Elementary Step Model of DNA
         Structure Kinetics with Locally Context-Dependent Arrhenius Rates’. In
@@ -653,30 +647,88 @@ class Options:
         self.substrate_type = Literals.substrateDNA
         self.rate_method = Literals.arrhenius
 
-        self.lnAStack = 1.41839430e+01
-        self.EStack = 5.28692038e+00
-
-        self.lnALoop = 1.64236969e+01
-        self.ELoop = 4.46143369e+00
-
-        self.lnAEnd = 1.29648159e+01
-        self.EEnd = 3.49798154e+00
-
-        self.lnAStackLoop = 5.81061725e+00
-        self.EStackLoop = -1.12763854e+00
-
-        self.lnAStackEnd = 1.75235569e+01
-        self.EStackEnd = 2.65589869e+00
-
-        self.lnALoopEnd = 2.42237267e+00
-        self.ELoopEnd = 8.49339120e-02
-
-        self.lnAStackStack = 8.04573830e+00
-        self.EStackStack = -6.27121400e-01
-
         self.unimolecular_scaling = 1.0
-        self.bimolecular_scaling = 1.60062641e-02
- 
+        self.bimolecular_scaling = 1.60062641e-2
+
+        self.lnAStack = 1.41839430e+1
+        self.EStack = 5.28692038e+0
+
+        self.lnALoop = 1.64236969e+1
+        self.ELoop = 4.46143369e+0
+
+        self.lnAEnd = 1.29648159e+1
+        self.EEnd = 3.49798154e+0
+
+        self.lnAStackLoop = 5.81061725e+0
+        self.EStackLoop = -1.12763854e+0
+
+        self.lnAStackEnd = 1.75235569e+1
+        self.EStackEnd = 2.65589869e+0
+
+        self.lnALoopEnd = 2.42237267e+0
+        self.ELoopEnd = 8.49339120e-2
+
+        self.lnAStackStack = 8.04573830e+0
+        self.EStackStack = -6.27121400e-1
+
+    def DNA29Arrhenius(self, sample_idx: Optional[int] = None):
+        """
+        Arrhenius model parameters presented at the DNA29 conference.
+
+        Arguments:
+        ----------
+        sample_idx : Optional[int]
+          The default parameter vector is the one used in the case study
+          (Sec. 5). If an index is provided, then it will be retrieved from a
+          file storing all MCMC samples of the approximate Bayesian posterior
+          over parameter vectors (Sec. 4.3, target: PE, inference method: RWM).
+
+        Reference:
+        ----------
+        Jordan Lovrod, Boyan Beronov, Chenwei Zhang, Erik Winfree, and Anne
+        Condon. 2023. “Revisiting Hybridization Kinetics with Improved
+        Elementary Step Simulation.” In 29th International Conference on DNA
+        Computing and Molecular Programming (DNA 29), edited by Ho-Lin Chen and
+        Constantine G. Evans, 276:5:1-5:24. Leibniz International Proceedings in
+        Informatics (LIPIcs). Dagstuhl, Germany: Schloss Dagstuhl –
+        Leibniz-Zentrum für Informatik. https://doi.org/10.4230/LIPIcs.DNA.29.5.
+        """
+        self.substrate_type = Literals.substrateDNA
+        self.rate_method = Literals.arrhenius
+        self.unimolecular_scaling = 1.0
+
+        if sample_idx is None:
+            self.bimolecular_scaling = 5.40306772408701e-2
+
+            self.lnAStack = 7.317929742353791e+0
+            self.EStack = 1.371171987160233e+0
+
+            self.lnALoop = 9.398865994892086e+0
+            self.ELoop = 6.675295990888666e-1
+
+            self.lnAEnd = 1.4182060613367684e+1
+            self.EEnd = 3.428091116849789e+0
+
+            self.lnAStackLoop = 1.124903532063121e+1
+            self.EStackLoop = 1.1475124044307237e+0
+
+            self.lnAStackEnd = 1.2975095181504653e+1
+            self.EStackEnd = -1.2455835738995455e+0
+
+            self.lnALoopEnd = 4.453062436943478e-1
+            self.ELoopEnd = -2.0459543870895307e+0
+
+            self.lnAStackStack = 1.15977270694611e+1
+            self.EStackStack = -2.4564902855673165e+0
+        else:
+            assert isinstance(sample_idx, int)
+            from pandas import read_csv
+            df = read_csv(importlib.resources.files(
+                "multistrand._options.parameters") / "dna29_arrhenius.csv")
+            params = df.iloc[sample_idx]
+            for p in (["bimolecular_scaling"] + self.arrheniusParams):
+                setattr(self, p, params[p])
+
     # FD: After temperature, substrate (RNA/DNA) or danlges is updated, we
     # attempt to update boltzmann samples.
     def updateBoltzmannSamples(self):
@@ -742,17 +794,17 @@ class Options:
         if self.rate_scaling != None :
             self.legacyRates()
         return self._bimolecular_scaling
- 
+
     @bimolecular_scaling.setter
     def bimolecular_scaling(self, value):
         self._bimolecular_scaling = float(value)
- 
+
     @property
     def unimolecular_scaling(self):
         if self.rate_scaling != None:
             self.legacyRates()
         return self._unimolecular_scaling
-    
+
     @unimolecular_scaling.setter
     def unimolecular_scaling(self, value):
         self._unimolecular_scaling = float(value)
@@ -770,7 +822,7 @@ class Options:
     @property
     def dangles(self):
         return self._dangles
-    
+
     @dangles.setter
     def dangles(self, value):
         if isinstance(value, str):
@@ -778,7 +830,7 @@ class Options:
         self._dangles = int(value)
         assert self.dangles in range(3)
         self.updateBoltzmannSamples()
-        
+
     # FD: Shadow parameter so that boltzmann samples can be updated when this
     # parameter is set. In a better control flow, complexes themselves might fetch the right
     # constants just before evaluating their boltzmann samples.
@@ -852,16 +904,16 @@ class Options:
     def sodium(self, value):
         self._sodium = float(value)
         self.updateBoltzmannSamples()
-    
+
     @property
     def magnesium(self):
         return self._magnesium
-    
+
     @magnesium.setter
     def magnesium(self, value):
         self._magnesium = float(value)
         self.updateBoltzmannSamples()
-        
+
     @property
     def boltzmann_sample(self):
         raise ValueError('Options.boltzmann_sample is now depreciated. Use Complex.boltzmann_sample instead.')
@@ -873,11 +925,11 @@ class Options:
     @property
     def start_state(self):
         """ Get the start state, i.e. a list of Complex objects.
-        
+
         Type         Default
         list         []
-        
-        This should be used by ssystem.cc to get the (potentially sampled) 
+
+        This should be used by ssystem.cc to get the (potentially sampled)
         start state.
         """
         return self._start_state
@@ -885,11 +937,11 @@ class Options:
     @start_state.setter
     def start_state(self, *args):
         """ Set the start state, i.e. a list of Complex objects.
-        
+
         Type         Default
         list         []
-        
-        The start state should be set (e.g. by the parser) so trajectories know 
+
+        The start state should be set (e.g. by the parser) so trajectories know
         how to start.
         """
         # Error checking first
@@ -897,13 +949,13 @@ class Options:
             raise Exception("Start state should only be set once.")
         if len(args) == 0 or len(args[0]) == 0:
             raise ValueError("No start state given.")
-        
+
         # deduce our input from the type of args[0].
         # Copy the input list because it's easy to do and it's safer
-        
+
         if isinstance(args[0], Complex):
             # args is a list of complexes
-            vals = copy.deepcopy(args) 
+            vals = copy.deepcopy(args)
         elif len(args) == 1 and hasattr(args[0], "__iter__"):
             vals = copy.deepcopy(args[0])
         else:
@@ -969,22 +1021,22 @@ class Options:
     @property
     def stop_conditions(self):
         """ The stop states, i.e. a list of StopCondition objects.
-        
+
         Type         Default
         list         []
-        
+
         Stop states should be added to this list (e.g. by the parser) so
         trajectories know when to end.
         """
         return self._stop_conditions
-    
+
     @stop_conditions.setter
     def stop_conditions(self, stop_list):
         """ The stop states, i.e. a list of StopCondition objects.
-        
+
         Type         Default
         list         []
-        
+
         Stop states should be added to this list (e.g. by the parser) so
         trajectories know when to end.
         """
@@ -996,13 +1048,13 @@ class Options:
         for item in stop_list:
             if not isinstance(item, StopCondition):
                 raise TypeError(f"All items must be 'StopCondition', not '{type(item)}'.")
-        
+
         # Copy the input list because it's easy to do and it's safer
         stop_list = copy.deepcopy(stop_list)
 
         for scond in stop_list:
             scond.verify_no_boltzmann()
-        
+
         # Set the internal data members
         self.stop_count = len(stop_list)
         self._stop_conditions = stop_list
@@ -1012,10 +1064,10 @@ class Options:
     def use_stop_conditions(self):
         """ Indicates whether trajectories should end when stop states
         are reached.
-        
+
         Type            Default
         boolean         False: End trajectory upon reaching max time only.
-        
+
         Defaults to ending trajectories only on the max simulation
         time, but setting any stop conditions automatically changes
         this to True, and it will stop whenever it reaches a stop
@@ -1028,24 +1080,24 @@ class Options:
         if val == True and len(self._stop_conditions) == 0:
              raise Warning("Options.use_stop_conditions was set to True, but no stop conditions have been defined!")
         self._use_stop_conditions = val
-    
+
     @property
     def increment_output_state(self):
-        """ Modifies self.current_interval and self.output_state as 
+        """ Modifies self.current_interval and self.output_state as
         necessary based on self.output_interval.
         """
         if self.output_interval == None or self.output_interval < 0:
             raise ValueError("output_interval has invalid value: %s" % self.output_interval)
-        
+
         elif self.current_interval > self.output_interval:
             raise ValueError("current_interval has invalid value: %s" % self.current_interval)
-        
+
         elif self.current_interval == self.output_interval:
             self.current_interval == 0
-        
+
         else:
             self.current_interval += 1
-        
+
         self.output_state = (self.current_interval == self.output_interval)
         return None
 
@@ -1053,22 +1105,22 @@ class Options:
     def temperature(self):
         """
         Temperature, in degrees Kelvin.
-        
+
         Arguments:
         temperature [type=float,default=310.15] -- Standard units of Kelvin.
                Default value corresponds to 37(C).
-        
+
         This is used mostly in scaling energy model terms, and those
         scaling factors always use Kelvin. Note that when set, the
         Options object will try to make sure it's actually a 'sane'
         value, as follows:
-        
+
         Temperatures in the range [0,100] are assumed to be Celsius,
         and are converted to Kelvin.
-        
+
         Temperatures in the range [273,373] are assumed to be in
         Kelvin.
-        
+
         Any temperature outside these ranges is set as the temperature
         in Kelvin, and a warning is raised. If any conversion takes
         place, a message is added to the Options object's errorlog.
@@ -1112,7 +1164,7 @@ class Options:
             raise Warning("Temperature did not fall in the usual expected ranges. Temperatures should be in units Kelvin, though the range [0,100] is assumed to mean units of Celsius.")
 
     def make_unique(self, strand):
-        """Returns a new Strand object with a unique identifier replacing the 
+        """Returns a new Strand object with a unique identifier replacing the
         old id. Also adds the new strand to self.name_dict[strand.name].
         """
         new_strand = Strand(
@@ -1235,13 +1287,13 @@ class Options:
 
         Listed below are some shortcuts, for attributes that have a
         range of options, or shortened names for long attributes.
-        
+
 
         Keyword Argument  |  Options
         dangles           |  'None', 'Some', 'All'
         parameter_type    |  'Nupack', 'Vienna'
         substrate_type    |  'DNA','RNA'
-        
+
         sim_time          | [simulation_time] Max time to simulate
         num_sims          | [num_simulations] Number of trajectories to run
         biscale           | [bimolecular_scaling] Bimolecular scaling constant
@@ -1258,7 +1310,7 @@ class Options:
             'sim_time': lambda x: self.__setattr__('simulation_time', x),
             'concentration': lambda x: self.__setattr__('join_concentration', x)
             }
-        
+
         # FD: Start throwing errors if not in the right format
         for key, value in kargs.items():
             if key == "sim_time":

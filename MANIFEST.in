@@ -3,7 +3,8 @@ include *.md MANIFEST.in
 recursive-include src *.h *.cc *.py
 recursive-include test *.py *.txt
 recursive-include tools *.def *.awk
+include src/interface/_options/parameters/*.csv
 
-recursive-include tutorials *.py *.ipynb *.sh *.md *.xlsx *.svg
+recursive-include tutorials *.py *.ipynb *.sh *.md *.xlsx *.png
 include doc/Makefile
 graft doc/source

@@ -21,6 +21,7 @@
 
 ### Functionality
 - Updated the NUPACK thermodynamic parameters to `dna04`/`rna99`.
+- Added the kinetic parameter preset `Options.DNA29Arrhenius()`.
 - Updated the default kinetic parameters in `EnergyOptions` (C++) to match the
   parameter preset `Options.JSDefault()` (Python).
 - Tied the formerly *static* `EnergyModel` (C++) instance as a *dynamic*

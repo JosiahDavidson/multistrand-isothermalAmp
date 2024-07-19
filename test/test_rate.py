@@ -15,7 +15,8 @@ from multistrand.system import calculate_rate
 @pytest.mark.parametrize("energies", [np.random.rand(100, 2)])
 @pytest.mark.parametrize(
     "rate_model",
-    ["JSMetropolis25", "JSMetropolis37", "DNA23Metropolis", "DNA23Arrhenius"])
+    ["JSMetropolis25", "JSMetropolis37", "DNA23Metropolis",
+     "DNA23Arrhenius", "DNA29Arrhenius"])
 class Test_Kinetic_Model:
 
     @staticmethod
@@ -39,16 +40,33 @@ class Test_Kinetic_Model:
         opt = Options()
         getattr(opt, rate_model)()
 
-        for up, down in map(partial(cls.bidir_rates, opt, TransitionType.unimol),
+        for up, down in map(partial(cls.bidir_rates, opt,
+                                    TransitionType.unimol),
                             cls.iterate_energies(energies)):
             print(np.array([up, down, opt.unimolecular_scaling]))
             assert down == opt.unimolecular_scaling
             assert 0 < up and up < down
-        for up, down in map(partial(cls.bidir_rates, opt, TransitionType.bimol_break),
+        for up, down in map(partial(cls.bidir_rates, opt,
+                                    TransitionType.bimol_break),
                             cls.iterate_energies(energies)):
             print(np.array([up, down, opt.bimolecular_scaling]))
             assert 0 < up and up < down
-        for up, down in map(partial(cls.bidir_rates, opt, TransitionType.bimol_join),
+        for up, down in map(partial(cls.bidir_rates, opt,
+                                    TransitionType.bimol_join),
                             cls.iterate_energies(energies)):
             print(np.array([up, down, opt.bimolecular_scaling]))
             assert up == down == opt.bimolecular_scaling
+
+
+class Test_Parameter_Loading:
+    """
+    For parameter families with multiple samples (i.e., obtained from Bayesian
+    posterior inference), check that the hard-coded default sample matches the
+    intended one when loading from the parameter file with all samples.
+    """
+    @staticmethod
+    def test_DNA29():
+        opt_default, opt_index = Options(), Options()
+        opt_default.DNA29Arrhenius()
+        opt_index.DNA29Arrhenius(sample_idx=184)
+        assert opt_default == opt_index

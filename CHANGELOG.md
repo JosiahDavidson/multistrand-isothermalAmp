@@ -34,8 +34,10 @@
   `Options.free_sim_system()`.
 - Enabled deterministic trajectory replays starting mid-way, using
   `Options.restart_from_checkpoint()`.
-- Improved `utility.printTrajectory()`, which is now normalized w.r.t.
-  strand-level cyclic permutations and able to report PRNG seeds.
+- Added `utility.normalize{State,Complex}()`, which standardize outputs w.r.t.
+  complex-level permutations and strand-level cyclic permutations.
+- Improved `utility.printTrajectory()`, which now uses
+  `utility.normalizeState()` and is able to report PRNG seeds.
 - Consolidated and extended `SimSystem.stateInfo()` (formerly `initialInfo()`)
   to accept states other than the initial state, to list both uni- and
   bimolecular moves, to print the adjacent secondary structure for each move,

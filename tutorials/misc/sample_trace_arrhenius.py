@@ -26,7 +26,6 @@ def doSims(strandSeq, numTraj=1):
     o.simulation_time = 0.001
     hybridization(o, strandSeq)
     o.DNA23Arrhenius()
-    o.initial_seed = 1777 + 6
 
     s = SimSystem(o)
     s.start()

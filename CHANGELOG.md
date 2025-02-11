@@ -32,6 +32,8 @@
   *concurrently* otherwise (e.g., for varying environment conditions or kinetic
   parameters). Henceforth, serialising an `Options` object requires a call to
   `Options.free_sim_system()`.
+- Enabled `Options.step_count` as a new termination criterion in addition to
+  `Options.simulation_time`.
 - Enabled deterministic trajectory replays starting mid-way, using
   `Options.restart_from_checkpoint()`.
 - Added `utility.normalize{State,Complex}()`, which standardize outputs w.r.t.

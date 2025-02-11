@@ -16,7 +16,9 @@ public:
 	SimTimer(SimOptions& myOptions);
 	~SimTimer();
 
+	void resetTime();
 	void advanceTime();
+	bool withinThresholds();
 	bool wouldBeHit(const double);
 	bool checkHit(const double);
 	int checkHitBi(const double collisionRate);
@@ -35,8 +37,10 @@ public:
 
 	double rate = 0.0;
 	double stime = 0.0;
+	long ssteps = 0;
 	double startsimtime = 0.0;
 	double maxsimtime = 0.0;
+	long maxsimsteps = 0;
 	double last_trajectory_time = 0.0;
 	long stopcount = 0;
 	long stopoptions = 0;

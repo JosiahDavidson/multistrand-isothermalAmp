@@ -37,6 +37,7 @@ PSimOptions::PSimOptions(PyObject* options) : python_settings(options)
 	getLongAttr(python_settings, use_stop_conditions, &stop_options);
 	getDoubleAttr(python_settings, simulation_start_time, &start_sim_time);
 	getDoubleAttr(python_settings, simulation_time, &max_sim_time);
+	getLongAttr(python_settings, step_count, &max_sim_steps);
 
 	// to print the initial state, used for statespace building
 	getBoolAttr(python_settings, print_initial_first_step, &printInitialFirstStep);
@@ -79,6 +80,7 @@ string SimOptions::toString() {
 	ss << "stop_count = " << stop_count << "\n";
 	ss << "start_sim_time = " << start_sim_time << "\n";
 	ss << "max_sim_time = " << max_sim_time << "\n";
+	ss << "max_sim_steps = " << max_sim_steps << "\n";
 	ss << "traj_seed = " << traj_seed << "\n";
 	ss << "state_seed = ("
 	   << state_seed[0] << "," << state_seed[1] << "," << state_seed[2]
@@ -161,6 +163,12 @@ double SimOptions::getStartSimTime(void) {
 double SimOptions::getMaxSimTime(void) {
 
 	return max_sim_time;
+
+}
+
+long SimOptions::getMaxSimSteps(void) {
+
+	return max_sim_steps;
 
 }
 

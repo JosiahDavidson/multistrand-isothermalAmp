@@ -154,7 +154,8 @@ class Options:
         dangles: str (None|Some|All)  -- Dangle terms used in the energy model.
         uniscale: float               -- Scaling of the unimolecular rate coefficient.
         biscale: float                -- Scaling of the bimolecular rate coefficient.
-        simulation_time: float        -- Cap on the maximum simulation time.
+        simulation_time: float        -- Cap on the simulation time per trajectory.
+        step_count: int               -- Cap on the Markov jumps per trajectory.
         num_simulations: int          -- Number of trajectories to run.
         rate_method: str (Kawasaki|Metropolis|Arrhenius)
 
@@ -317,6 +318,7 @@ class Options:
 
         self._simulation_start_time: float = 0.0
         self._simulation_time: float = 600.0
+        self._step_count: int = 0
         self._num_simulations: int = 1
 
         self._initial_seed: Optional[int] = None
@@ -512,7 +514,7 @@ class Options:
             self.rate_scaling,
             self.rate_method, self.unimolecular_scaling, self.bimolecular_scaling,
             self.simulation_mode, self.num_simulations,
-            self.simulation_start_time, self.simulation_time,
+            self.simulation_start_time, self.simulation_time, self.step_count,
             self.dSA, self.dHA, self.sodium, self.magnesium,
             self.start_state, self.stop_conditions,
             self.output_time, self.output_interval, self.output_state,
@@ -526,7 +528,7 @@ class Options:
             other.rate_scaling,
             other.rate_method, other.unimolecular_scaling, other.bimolecular_scaling,
             other.simulation_mode, other.num_simulations,
-            other.simulation_start_time, other.simulation_time,
+            other.simulation_start_time, other.simulation_time, other.step_count,
             other.dSA, other.dHA, other.sodium, other.magnesium,
             other.start_state, other.stop_conditions,
             other.output_time, other.output_interval, other.output_state,
@@ -771,6 +773,20 @@ class Options:
     @simulation_time.setter
     def simulation_time(self, value):
         self._simulation_time = float(value)
+
+    @property
+    def step_count(self):
+        """
+        Maximum number of Markov jumps allowed for each trajectory.
+
+        Type         Default
+        int          0 (unlimited)
+        """
+        return self._step_count
+
+    @step_count.setter
+    def step_count(self, value):
+        self._step_count = int(value)
 
     @property
     def num_simulations(self):

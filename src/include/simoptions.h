@@ -74,6 +74,7 @@ public:
 	long getStopCount(void);
 	double getStartSimTime(void);
 	double getMaxSimTime(void);
+	long getMaxSimSteps(void);
 
 	bool getPrintIntialFirstStep(); // true if the initial state has to be exported.
 
@@ -123,6 +124,7 @@ protected:
 	long stop_count = 0;
 	double start_sim_time = 0;
 	double max_sim_time = 0;
+	long max_sim_steps = 0;
 
 	seed32_t traj_seed = 0;
 	seed48_t state_seed = {0, 0, 0};

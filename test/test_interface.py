@@ -78,7 +78,6 @@ class Test_Interface:
         objects.
         """
         _, _, complexes, conditions = self.small_system()
-
         o = Options()
         o.simulation_mode = mode
         o.substrate_type  = Literals.substrateDNA
@@ -146,3 +145,21 @@ class Test_Interface:
                     "Completion Time", "Collision Rate", "Completion Tag",
                     "Normal"])
         print(capture.out)
+
+    @pytest.mark.parametrize("mode", [Literals.trajectory, Literals.first_step])
+    @pytest.mark.parametrize("kinetics", ["DNA23Metropolis", "DNA23Arrhenius"])
+    @pytest.mark.parametrize("num_simulations", [1, 4, 16])
+    @pytest.mark.parametrize("step_count", list(map(int, [1e1, 3e2, 1e4])))
+    def test_step_count(self, mode: Literals, kinetics: str,
+                        num_simulations: int, step_count: int):
+        """
+        Check the termination criterion `Options.step_count`.
+        """
+        o = Options(start_state=self.big_system()[2:4],
+                    simulation_mode=mode, step_count=step_count,
+                    num_simulations=num_simulations, output_interval=1)
+        getattr(o, kinetics)()
+        s = SimSystem(o)
+        s.start()
+        assert len(o.interface.results) == num_simulations
+        assert len(o.full_trajectory) == num_simulations * (1 + step_count)

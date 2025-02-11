@@ -203,7 +203,7 @@ void SimulationSystem::SimulationLoop_Standard(void) {
 
 		myTimer.advanceTime();
 
-		if (myTimer.stime < myTimer.maxsimtime) {
+		if (myTimer.withinThresholds()) {
 			// Why check here? Because we want to report the final state
 			// as the one we were in before transitioning past the maximum
 			// time, rather than the one after it. This is not entirely
@@ -247,7 +247,7 @@ void SimulationSystem::SimulationLoop_Standard(void) {
 				}
 			}
 		}
-	} while (myTimer.stime < myTimer.maxsimtime && !checkresult);
+	} while (myTimer.withinThresholds() && !checkresult);
 
 	if (myTimer.stime == NAN) {
 		simOptions->stopResultNan(trajectory_seed);
@@ -255,7 +255,7 @@ void SimulationSystem::SimulationLoop_Standard(void) {
 		dumpEndStateToPython();
 		simOptions->stopResultNormal(trajectory_seed, myTimer.stime, traverse->tag);
 		delete first;
-	} else { // stime >= maxsimtime
+	} else { // stime >= maxsimtime ||  ssteps >= maxsimsteps
 		dumpEndStateToPython();
 		simOptions->stopResultTime(trajectory_seed, myTimer.maxsimtime);
 	}
@@ -320,7 +320,7 @@ void SimulationSystem::SimulationLoop_Trajectory() {
 			}
 		}
 
-	} while (myTimer.stime < myTimer.maxsimtime && !stopFlag);
+	} while (myTimer.withinThresholds() && !stopFlag);
 
 	if (myTimer.stime == NAN) {
 		simOptions->stopResultNan(trajectory_seed);
@@ -390,7 +390,7 @@ void SimulationSystem::SimulationLoop_Transition(void) {
 
 		myTimer.advanceTime();
 
-		if (myTimer.stime < myTimer.maxsimtime) {
+		if (myTimer.withinThresholds()) {
 			// See note in SimulationLoop_Standard
 
 			complexList->doBasicChoice(myTimer);
@@ -431,14 +431,14 @@ void SimulationSystem::SimulationLoop_Transition(void) {
 				state_changed = false;
 			}
 		}
-	} while (myTimer.stime < myTimer.maxsimtime && !stopFlag);
+	} while (myTimer.withinThresholds() && !stopFlag);
 
 	if (myTimer.stime == NAN) {
 		simOptions->stopResultNan(trajectory_seed);
 	} else if (stopFlag) {
 		dumpEndStateToPython();
 		simOptions->stopResultNormal(trajectory_seed, myTimer.stime, traverse->tag);
-	} else { // stime >= maxsimtime
+	} else { // stime >= maxsimtime ||  ssteps >= maxsimsteps
 		dumpEndStateToPython();
 		simOptions->stopResultTime(trajectory_seed, myTimer.maxsimtime);
 	}
@@ -483,7 +483,8 @@ void SimulationSystem::SimulationLoop_FirstStep(void) {
 	}
 
 	myTimer.advanceTime(); // select an rchoice
-	myTimer.stime = 0.0; // but reset the jump in time, because first step mode.
+	myTimer.startsimtime = 0.0; // but reset the jump in time, because first step mode.
+	myTimer.resetTime();
 
 	double ArrMoveType = complexList->doJoinChoice(myTimer);
 
@@ -543,7 +544,7 @@ void SimulationSystem::SimulationLoop_FirstStep(void) {
 				delete first;
 		}
 
-	} while (myTimer.stime < myTimer.maxsimtime && !stopFlag);
+	} while (myTimer.withinThresholds() && !stopFlag);
 
 	if (stopFlag) {
 		dumpEndStateToPython();

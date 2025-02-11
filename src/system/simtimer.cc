@@ -11,13 +11,14 @@ SimTimer::SimTimer(SimOptions& myOptions) {
 
 	startsimtime = myOptions.getStartSimTime();
 	maxsimtime = myOptions.getMaxSimTime();
+	maxsimsteps = myOptions.getMaxSimSteps();
 	stopcount = myOptions.getStopCount();
 	stopoptions = myOptions.getStopOptions();
 
 	// saving the pointer to enable access to cotranscriptional timing values
 	simOptions = &myOptions;
 
-	stime = startsimtime;
+	resetTime();
 	setPRNG();
 }
 
@@ -72,6 +73,13 @@ void SimTimer::printPRNG(seed48_t *prng) {
 		 << ")" << endl;
 }
 
+void SimTimer::resetTime() {
+
+	stime = startsimtime;
+	ssteps = 0;
+
+}
+
 // Advance the simulation time according to the current `SimTimer.rate`.
 // Conditioned on the random variables sampled here, the entire simulation
 // is deterministic. Note that `SimTimer.seed` is used as an external
@@ -80,6 +88,13 @@ void SimTimer::advanceTime() {
 
 	rchoice = rate * erand48(seed);
 	stime += log(1. / (1.0 - erand48(seed))) / rate;
+	ssteps += 1;
+
+}
+
+bool SimTimer::withinThresholds() {
+
+	return stime < maxsimtime && (maxsimsteps == 0 || ssteps < maxsimsteps);
 
 }
 
@@ -121,6 +136,7 @@ std::ostream& operator<<(std::ostream& ss, SimTimer& timer) {
 
 	ss << "[rchoice=" << timer.rchoice
 	   << ", rate=" << timer.rate
-	   << ", simTime=" << timer.stime << "]" << std::endl;
+	   << ", simTime=" << timer.stime
+	   << ", simSteps=" << timer.ssteps << "]" << std::endl;
 	return ss;
 }

@@ -18,7 +18,7 @@ From: bitnami/python:{{CPY_VER}}-debian-12
 %arguments
 
     # version config
-    NUPACK_VER=4.0.1.11
+    NUPACK_VER=4.0.1.12
     CPY_VER=3.12
 
 %files

@@ -58,7 +58,7 @@ the software.
 | Dependency                        | Notes              |
 |-----------------------------------|--------------------|
 | C++11                             | gcc 8+ or clang 8+ |
-| Python                            | 3.9+               |
+| Python                            | 3.10+              |
 | [NUPACK](https://www.nupack.org/) | 4.0.1+             |
  
 The `numpy` and `scipy` Python packages are installed automatically as
@@ -281,7 +281,7 @@ rate method   :  3  (1: Metropolis, 2: Kawasaki, 3: Arrhenius)
 dangles       :  1  (0: none, 1: some, 2: all)
 GT pairing    :  1  (0: disabled, 1: enabled)
 concentration :  1 M
-Nupack params :  /opt/bitnami/python/lib/python3.11/site-packages/nupack/parameters/dna04-nupack3.json
+Nupack params :  /opt/bitnami/python/lib/python3.12/site-packages/nupack/parameters/dna04-nupack3.json
 
 Kinetic parameters:
   type          End        Loop       Stack  StackStack     LoopEnd    StackEnd   StackLoop

@@ -9,7 +9,7 @@ From: bitnami/minideb:bookworm
 
     This Apptainer container definition installs NUPACK 4.0.1 [1] and a debug
     build of Multistrand 2.2 [2], assuming that both source trees are available
-    on the host system (see %files section). It uses GCC 12, GDB 14.2, Valgrind
+    on the host system (see %files section). It uses GCC 12, GDB 16.2, Valgrind
     3.19 and a debug build of Python 3.12, and requires Apptainer 1.2+ to build.
     See [3] for a tutorial on using GDB for the Python runtime and its C
     extensions, and similarly [4] for Valgrind.
@@ -22,10 +22,10 @@ From: bitnami/minideb:bookworm
 %arguments
 
     # version config
-    NUPACK_VER=4.0.1.11
+    NUPACK_VER=4.0.1.12
     CPY_VER=3.12
-    CPY_TAG=4
-    GDB_VER=14.2
+    CPY_TAG=9
+    GDB_VER=16.2
 
     # compiler config
     NJOBS=8

@@ -190,7 +190,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'Multistrand'
-copyright = 'Caltech 2008-2024 <help@multistran.org>'
+copyright = 'Caltech 2008-2025 <help@multistran.org>'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

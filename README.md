@@ -25,7 +25,7 @@ general inquiries to help@multistrand.org.
 ## Licence
 
     Multistrand nucleic acid kinetic simulator
-    Copyright (c) 2008-2024 California Institute of Technology. All rights reserved.
+    Copyright (c) 2008-2025 California Institute of Technology. All rights reserved.
     The Multistrand Team (help@multistrand.org)
 
 Using this software is permitted for academic non-commercial purposes only. All
@@ -215,7 +215,7 @@ complex, `R` is the gas constant and `T` is the temperature).
 ```sh
 $> python tutorials/compute/rate.py hybridization AGCTGA -bootstrap
 --------------------------------------------------------------------------------
-2024-04-13 19:17:53   Starting Multistrand 2.2  (c) 2008-2024 Caltech
+2025-04-13 19:17:53   Starting Multistrand 2.2  (c) 2008-2025 Caltech
 
 Running first step mode simulations for AGCTGA (with Boltzmann sampling)...
 

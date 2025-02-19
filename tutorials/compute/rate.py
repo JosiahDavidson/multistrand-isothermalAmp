@@ -42,6 +42,18 @@ def main():
     result = compute(mySequence, doBootstrap)
     print(f"Computing took {time.time() - start_time:.4f} s")
 
+def main_nbCall(compType, mySequence, doBootstrap, temperature=25.0, sodium=1.0, magnesium=0.0):
+    start_time = time.time()
+    if compType == "dissociation":
+        from dissociation import computeAndWriteToCL as compute
+    elif compType == "hybridization":
+        from anneal import computeAndWriteToCL as compute
+    else:
+        errorPrint()
+    result = compute(mySequence, temperature=temperature, doBootstrap=doBootstrap, sodium=sodium, magnesium=magnesium)
+    print(f"Computing took {time.time() - start_time:.4f} s")
+    return result
+
 
 if __name__ == "__main__":
     main()

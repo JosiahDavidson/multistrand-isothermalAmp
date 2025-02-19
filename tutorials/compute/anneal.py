@@ -14,7 +14,7 @@ A_CONCENTRATION = 50e-9
 
 
 def first_step_simulation(strand_seq: str, trials: int, timeout: float,
-                          temperature: float, sodium: float, material="DNA") -> None:
+                          temperature: float, sodium: float, magnesium: float,material="DNA") -> None:
 
     print(f"\nRunning first step mode simulations for {strand_seq} "
           "(with Boltzmann sampling)...\n")
@@ -23,6 +23,7 @@ def first_step_simulation(strand_seq: str, trials: int, timeout: float,
         o = standardOptions(simMode=Literals.first_step,
                             tempIn=temperature, trials=_trials, timeOut=timeout)
         o.sodium = sodium
+        o.magnesium = magnesium
         hybridization(o, strand_seq, _trials)
         o.DNA23Arrhenius()
         o.substrate_type = material
@@ -35,15 +36,15 @@ def first_step_simulation(strand_seq: str, trials: int, timeout: float,
     myMultistrand.run()
 
 
-def compute(strand_seq, temperature=25.0, sodium=1.0):
+def compute(strand_seq, temperature=25.0, sodium=1.0, magnesium=0.0):
     first_step_simulation(strand_seq, trials=num_trials, timeout=1.0,
                           temperature=temperature, sodium=sodium)
     return myMultistrand
 
 
-def computeAndWriteToCL(strand_seq, doBootstrap, temperature=25.0, sodium=1.0):
+def computeAndWriteToCL(strand_seq, doBootstrap, temperature=25.0, sodium=1.0, magnesium=0.0):
     first_step_simulation(strand_seq, trials=num_trials, timeout=1.0,
-                          temperature=temperature, sodium=sodium)
+                          temperature=temperature, sodium=sodium, magnesium=magnesium)
     result = myMultistrand.results
     print(f"The hybridization rate of {strand_seq} and the reverse complement is "
           f"{result.k1():.2e} /M /s")
@@ -53,3 +54,4 @@ def computeAndWriteToCL(strand_seq, doBootstrap, temperature=25.0, sodium=1.0):
         bounds = bootstrap.ninetyFivePercentiles()
 
         print(f"Estimated 95% confidence interval: [{bounds[0]:.2e},{bounds[1]:.2e}]")
+    return result

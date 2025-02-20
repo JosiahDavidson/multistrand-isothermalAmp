@@ -59,7 +59,7 @@ From: bitnami/python:{{CPY_VER}}-debian-12
         tmux time less tree vim nano libasound2 libatk-bridge2.0-0 \
         libatk1.0-0 libatspi2.0-0 libcairo2 libdbus-1-3 libgbm1 \
         libglib2.0-0 libgtk-3-0 libnspr4 libnss3 libxkbfile1 \
-        xdg-utils libvulkan1 gpg
+        xdg-utils libvulkan1 gpg git openssh-client
 
     # Manually install GPG key and add repo for vscode cli install
     wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
